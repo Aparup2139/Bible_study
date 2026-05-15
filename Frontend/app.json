@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "BibleWay",
+    "slug": "bibleway",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "bibleway",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bibleway.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BibleWay uses your camera for live streaming.",
+        "NSMicrophoneUsageDescription": "BibleWay uses your microphone for live streaming and Study Chat.",
+        "NSPhotoLibraryUsageDescription": "BibleWay accesses your photo library to update your profile photo."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.bibleway.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-av",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "BibleWay uses your camera for live streaming."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BibleWay accesses your photo library to update your profile photo."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
