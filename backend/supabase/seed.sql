@@ -1,0 +1,4 @@
+-- seed.sql
+-- Reference / demo data applied after migrations (e.g. `supabase db reset`).
+-- Phase 2 will append the denominations seed here (from Frontend mockData).
+-- Intentionally empty for Phase 0.

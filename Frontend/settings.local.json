@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\Aparup Ghosh\\\\Bible_Read\\\\Frontend\")",
+      "Bash(node -e ' *)",
+      "Bash(npx expo *)"
+    ]
+  }
+}

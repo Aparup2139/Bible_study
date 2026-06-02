@@ -52,7 +52,9 @@
         {
           "photosPermission": "BibleWay accesses your photo library to update your profile photo."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

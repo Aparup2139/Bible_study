@@ -1,0 +1,29 @@
+# Supabase CLI config. Run `supabase link --project-ref <ref>` then `supabase db push`.
+# Docs: https://supabase.com/docs/guides/cli/config
+
+project_id = "bibleway"
+
+[db]
+# Local dev database port (used by `supabase start`).
+port = 54322
+major_version = 15
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+# Phase 1 wires these up. Update site_url / additional_redirect_urls for the Expo app.
+site_url = "bibleway://"
+additional_redirect_urls = ["bibleway://", "exp://"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[studio]
+port = 54323

@@ -1,8 +1,8 @@
 export const Colors = {
   // Primary brand
-  primary: '#ff0000',
-  primaryDark: '#cc0000',
-  primaryLight: '#ff4444',
+  primary: '#9500ff',
+  primaryDark: '#4400cc',
+  primaryLight: '#a844ff',
 
   // Backgrounds
   background: '#000000',
@@ -38,7 +38,7 @@ export const Colors = {
   chatInput: '#0a0a0a',
 
   // Gradient stops
-  gradientRedStart: '#ff0000',
+  gradientRedStart: '#4400cc',
   gradientRedEnd: '#cc0000',
 } as const;
 

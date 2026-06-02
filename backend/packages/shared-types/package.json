@@ -1,0 +1,16 @@
+{
+  "name": "@bibleway/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Domain types shared across the BibleWay backend (single source of truth)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

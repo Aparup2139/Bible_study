@@ -1,0 +1,21 @@
+{
+  "name": "@bibleway/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BibleWay backend — NestJS API + shared types + Supabase migrations",
+  "workspaces": [
+    "packages/*",
+    "api"
+  ],
+  "scripts": {
+    "build:types": "npm run build --workspace @bibleway/shared-types",
+    "build": "npm run build:types && npm run build --workspace @bibleway/api",
+    "dev": "npm run build:types && npm run dev --workspace @bibleway/api",
+    "start": "npm run start --workspace @bibleway/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

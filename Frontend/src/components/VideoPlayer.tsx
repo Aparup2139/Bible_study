@@ -54,7 +54,7 @@ export function VideoPlayer({ onMenuPress, viewerCount = 1248 }: Props) {
       {/* Animated scene content */}
       <View style={styles.sceneContent}>
         <Animated.Text style={[styles.sceneIcon, { transform: [{ translateY }], opacity }]}>
-          🙏
+          📖
         </Animated.Text>
         <Text style={styles.sceneTitle}>Sunday Worship</Text>
         <Text style={styles.sceneSubtitle}>Live from our congregation</Text>
