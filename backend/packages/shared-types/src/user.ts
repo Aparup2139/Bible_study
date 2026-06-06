@@ -13,7 +13,20 @@ export interface UserProfile {
   createdAt: string;
 }
 
-/** Fields a user is allowed to change on their own profile. */
-export type UpdateProfileInput = Partial<
-  Pick<UserProfile, 'displayName' | 'handle' | 'bio' | 'avatarUri' | 'denominationId'>
->;
+// Fields a user is allowed to change on their own profile.
+// avatarPath is the Storage object path, not a URL. The server resolves it to
+// UserProfile.avatarUri (a CDN URL) on read. Privileged fields (subscriberCount,
+// isVerified) are intentionally excluded and are also blocked at the database layer.
+export interface UpdateProfileInput {
+  displayName?: string;
+  handle?: string;
+  bio?: string;
+  avatarPath?: string | null;
+  denominationId?: string | null;
+}
+
+// Response for the handle-availability check used by the edit screen.
+export interface HandleAvailability {
+  handle: string;
+  available: boolean;
+}

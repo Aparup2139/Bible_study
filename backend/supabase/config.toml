@@ -23,7 +23,30 @@ enable_signup = true
 
 [auth.email]
 enable_signup = true
+# Phase 1: keep email confirmations off for local dev so the Expo app can sign in
+# immediately. Turn this ON in staging/prod (dashboard -> Auth -> Email).
 enable_confirmations = false
+
+# --- External OAuth providers (Phase 1, step 1) -------------------------------
+# These blocks configure the providers for LOCAL development (`supabase start`).
+# For the hosted dev/staging/prod projects you must ALSO enable each provider and
+# paste its client id/secret in the dashboard (Authentication -> Providers) -- the
+# secrets cannot live in this committed file. The env() refs below read from your
+# shell / backend .env when running locally.
+
+# Apple -- MANDATORY for iOS App Store approval when offering any other social login.
+[auth.external.apple]
+enabled = true
+client_id = "env(SUPABASE_AUTH_APPLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_APPLE_SECRET)"
+redirect_uri = "bibleway://auth/callback"
+
+# Google
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+redirect_uri = "bibleway://auth/callback"
 
 [studio]
 port = 54323

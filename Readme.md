@@ -63,9 +63,9 @@ users without breaking — smooth, fast, real-time.
 | Phase | Feature | Status |
 |---|---|---|
 | **0** | Foundations (Supabase projects, NestJS API, migrations, CI, shared types) | 🟡 **In progress** |
-| 1 | Auth & Profiles | ⬜ Not started |
-| 2 | Denominations (warm-up) | ⬜ Not started |
-| 3 | Podcasts | ⬜ Not started |
+| 1 | Auth & Profiles | 🟡 **Code complete — needs migrations applied + env set** |
+| 2 | Denominations (warm-up) | 🟡 **Code complete — needs `supabase db push`** |
+| 3 | Podcasts | 🟡 **Code complete — needs `supabase db push`** |
 | 4 | Live Video (Mux) | ⬜ Not started |
 | 5 | Live Chat | ⬜ Not started |
 | 6 | Audio Rooms (LiveKit) | ⬜ Not started |

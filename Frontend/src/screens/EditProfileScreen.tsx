@@ -14,6 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
+import { useUpdateProfile } from '../hooks/useProfile';
+import { signOut } from '../services/session';
 
 type ProfileTab = 'info' | 'social' | 'preferences';
 
@@ -32,6 +34,13 @@ interface Props {
 export function EditProfileScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { profile, setProfile } = useAppStore();
+  const updateProfile = useUpdateProfile();
+
+  const handleSignOut = async () => {
+    // The auth gate swaps to the sign-in screen automatically once the
+    // session clears (Supabase onAuthStateChange).
+    await signOut();
+  };
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('info');
   const [displayName, setDisplayName] = useState(profile.displayName);
@@ -65,13 +74,23 @@ export function EditProfileScreen({ onClose }: Props) {
       Alert.alert('Validation', 'Display name cannot be empty.');
       return;
     }
-    setProfile({
-      displayName: displayName.trim(),
-      handle: `@${handle.trim().replace(/^@/, '')}`,
-      bio: bio.trim(),
-    });
-    showSuccess();
-  }, [displayName, handle, bio, setProfile, showSuccess]);
+    // Send the handle WITHOUT a leading '@' (the API stores/validates it bare).
+    updateProfile.mutate(
+      {
+        displayName: displayName.trim(),
+        handle: handle.trim().replace(/^@/, ''),
+        bio: bio.trim(),
+      },
+      {
+        onSuccess: () => showSuccess(),
+        onError: (err) =>
+          Alert.alert(
+            'Could not save',
+            err instanceof Error ? err.message : 'Please try again.',
+          ),
+      },
+    );
+  }, [displayName, handle, bio, updateProfile, showSuccess]);
 
   const bioRemaining = BIO_MAX - bio.length;
 
@@ -248,6 +267,9 @@ export function EditProfileScreen({ onClose }: Props) {
       {/* Scrollable form */}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {renderTabContent()}
+        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
         <View style={{ height: 120 }} />
       </ScrollView>
 
@@ -265,6 +287,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  signOutBtn: {
+    marginTop: Spacing.lg,
+    marginHorizontal: Spacing.base,
+    paddingVertical: Spacing.base,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    alignItems: 'center',
+  },
+  signOutText: {
+    color: Colors.error,
+    fontSize: Typography.md,
+    fontWeight: Typography.semibold,
   },
   successToast: {
     position: 'absolute',

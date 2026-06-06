@@ -13,6 +13,10 @@ export const envSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+
+  // Phase 3: Upstash Redis for buffering playback-progress writes.
+  // Optional — when unset, the API falls back to direct Postgres UPSERTs.
+  REDIS_URL: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

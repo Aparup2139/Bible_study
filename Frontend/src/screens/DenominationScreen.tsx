@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,109 +10,28 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
+import { useDenominations } from '../hooks/useDenominations';
+import { useUpdateProfile } from '../hooks/useProfile';
+import { useAppStore } from '../store/useAppStore';
 import type { Denomination } from '../types';
 
-// Denomination data with group labels
+// Maps the API's DenominationGroup enum to the picker's display label.
+const GROUP_LABELS: Record<string, string> = {
+  CATHOLIC: '\u{1F4D6} CATHOLIC',
+  ORTHODOX: '\u{2626}\u{FE0F} ORTHODOX',
+  PROTESTANT_MAINLINE: '\u{271D}\u{FE0F} PROTESTANT \u2013 MAINLINE',
+  PROTESTANT_EVANGELICAL: '\u{1F4E3} EVANGELICAL',
+  PENTECOSTAL: '\u{1F525} PENTECOSTAL',
+  CHARISMATIC: '\u{2728} CHARISMATIC',
+  BAPTIST: '\u{1F54A}\u{FE0F} BAPTIST',
+  ADVENTIST: '\u{1F4C5} ADVENTIST',
+  OTHER: '\u{26EA} OTHER',
+};
+
 type DenominationOption = {
   value: string;
   label: string;
   group: string;
-};
-
-const DENOMINATION_OPTIONS: DenominationOption[] = [
-  // Catholic
-  { value: 'roman-catholic', label: 'Roman Catholic Church', group: '📖 CATHOLIC' },
-  { value: 'eastern-catholic', label: 'Eastern Catholic Churches', group: '📖 CATHOLIC' },
-  { value: 'old-catholic', label: 'Old Catholic Church', group: '📖 CATHOLIC' },
-  // Orthodox
-  { value: 'eastern-orthodox', label: 'Eastern Orthodox Church', group: '☦️ ORTHODOX' },
-  { value: 'greek-orthodox', label: 'Greek Orthodox Church', group: '☦️ ORTHODOX' },
-  { value: 'russian-orthodox', label: 'Russian Orthodox Church', group: '☦️ ORTHODOX' },
-  { value: 'coptic-orthodox', label: 'Coptic Orthodox Church', group: '☦️ ORTHODOX' },
-  { value: 'ethiopian-orthodox', label: 'Ethiopian Orthodox Church', group: '☦️ ORTHODOX' },
-  // Protestant Mainline
-  { value: 'anglican', label: 'Anglican/Episcopal Church', group: '✝️ PROTESTANT – MAINLINE' },
-  { value: 'lutheran', label: 'Lutheran Church', group: '✝️ PROTESTANT – MAINLINE' },
-  { value: 'methodist', label: 'Methodist Church', group: '✝️ PROTESTANT – MAINLINE' },
-  { value: 'presbyterian', label: 'Presbyterian Church', group: '✝️ PROTESTANT – MAINLINE' },
-  { value: 'reformed', label: 'Reformed Church', group: '✝️ PROTESTANT – MAINLINE' },
-  // Evangelical
-  { value: 'southern-baptist', label: 'Southern Baptist Convention', group: '📣 EVANGELICAL' },
-  { value: 'nondenominational', label: 'Nondenominational Christian', group: '📣 EVANGELICAL' },
-  { value: 'evangelical-free', label: 'Evangelical Free Church', group: '📣 EVANGELICAL' },
-  // Pentecostal
-  { value: 'assemblies-of-god', label: 'Assemblies of God', group: '🔥 PENTECOSTAL' },
-  { value: 'church-of-god', label: 'Church of God (Cleveland)', group: '🔥 PENTECOSTAL' },
-  { value: 'foursquare', label: 'Foursquare Church', group: '🔥 PENTECOSTAL' },
-  // Baptist
-  { value: 'american-baptist', label: 'American Baptist Churches', group: '🕊️ BAPTIST' },
-  { value: 'national-baptist', label: 'National Baptist Convention', group: '🕊️ BAPTIST' },
-  { value: 'progressive-national-baptist', label: 'Progressive National Baptist', group: '🕊️ BAPTIST' },
-  // Adventist
-  { value: 'seventh-day-adventist', label: 'Seventh-day Adventist Church', group: '📅 ADVENTIST' },
-];
-
-const DENOMINATION_INFO: Record<string, Denomination> = {
-  'roman-catholic': {
-    id: 'roman-catholic',
-    name: 'Roman Catholic Church',
-    group: 'CATHOLIC',
-    description: 'The largest Christian church, led by the Pope in Rome. Known for its rich sacramental tradition, hierarchical structure, and continuity with the early church.',
-    globalFollowers: '1.3 billion',
-    bibleVersion: 'New American Bible (NAB)',
-    foundedYear: 33,
-    worldwideMembers: '1,345,000,000',
-  },
-  'assemblies-of-god': {
-    id: 'assemblies-of-god',
-    name: 'Assemblies of God',
-    group: 'PENTECOSTAL',
-    description: 'One of the largest Pentecostal denominations worldwide, emphasizing the baptism of the Holy Spirit, speaking in tongues, and divine healing.',
-    globalFollowers: '69 million',
-    bibleVersion: 'NIV / ESV',
-    foundedYear: 1914,
-    worldwideMembers: '69,000,000',
-  },
-  'southern-baptist': {
-    id: 'southern-baptist',
-    name: 'Southern Baptist Convention',
-    group: 'BAPTIST',
-    description: "The largest Protestant denomination in the United States, emphasizing believer's baptism, local church autonomy, and a strong commitment to evangelism and missions.",
-    globalFollowers: '14 million',
-    bibleVersion: 'KJV / CSB',
-    foundedYear: 1845,
-    worldwideMembers: '14,000,000',
-  },
-  'eastern-orthodox': {
-    id: 'eastern-orthodox',
-    name: 'Eastern Orthodox Church',
-    group: 'ORTHODOX',
-    description: 'One of the oldest branches of Christianity, emphasizing the seven ecumenical councils, theosis, and the divine liturgy. Known for its rich iconographic tradition.',
-    globalFollowers: '260 million',
-    bibleVersion: 'Orthodox Study Bible (OSB)',
-    foundedYear: 33,
-    worldwideMembers: '260,000,000',
-  },
-  'lutheran': {
-    id: 'lutheran',
-    name: 'Lutheran Church',
-    group: 'PROTESTANT_MAINLINE',
-    description: 'Founded on the teachings of Martin Luther, Lutheranism emphasises justification by grace through faith alone, the authority of Scripture, and the two sacraments of baptism and communion.',
-    globalFollowers: '77 million',
-    bibleVersion: 'ESV / NIV',
-    foundedYear: 1517,
-    worldwideMembers: '77,000,000',
-  },
-  'seventh-day-adventist': {
-    id: 'seventh-day-adventist',
-    name: 'Seventh-day Adventist Church',
-    group: 'ADVENTIST',
-    description: 'A Protestant Christian denomination known for its emphasis on the Saturday Sabbath, holistic health, and the imminent second coming of Jesus Christ.',
-    globalFollowers: '21 million',
-    bibleVersion: 'NKJV / NIV',
-    foundedYear: 1863,
-    worldwideMembers: '21,000,000',
-  },
 };
 
 interface Props {
@@ -121,14 +40,53 @@ interface Props {
 
 export function DenominationScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { data: denominations = [] } = useDenominations();
+  const { profile } = useAppStore();
+  const updateProfile = useUpdateProfile();
+
   const [selectedId, setSelectedId] = useState<string>('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  const selectedOption = DENOMINATION_OPTIONS.find((o) => o.value === selectedId);
-  const info = selectedId ? DENOMINATION_INFO[selectedId] : null;
+  // Reflect the profile's saved denomination once it loads.
+  useEffect(() => {
+    if (profile.denominationId) setSelectedId(profile.denominationId);
+  }, [profile.denominationId]);
+
+  const options: DenominationOption[] = useMemo(
+    () =>
+      denominations.map((d) => ({
+        value: d.id,
+        label: d.name,
+        group: GROUP_LABELS[d.group] ?? d.group,
+      })),
+    [denominations],
+  );
+  const infoMap = useMemo(
+    () => Object.fromEntries(denominations.map((d) => [d.id, d] as const)),
+    [denominations],
+  );
+
+  const selectedOption = options.find((o) => o.value === selectedId);
+  const info: Denomination | null = selectedId ? infoMap[selectedId] ?? null : null;
+
+  // Persist the choice to the backend (writes profiles.denomination_id).
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+    setIsPickerOpen(false);
+    updateProfile.mutate(
+      { denominationId: id },
+      {
+        onError: (err) =>
+          Alert.alert(
+            'Could not save',
+            err instanceof Error ? err.message : 'Please try again.',
+          ),
+      },
+    );
+  };
 
   // Group options for the picker list
-  const groups = DENOMINATION_OPTIONS.reduce<Record<string, DenominationOption[]>>((acc, opt) => {
+  const groups = options.reduce<Record<string, DenominationOption[]>>((acc, opt) => {
     if (!acc[opt.group]) acc[opt.group] = [];
     acc[opt.group].push(opt);
     return acc;
@@ -188,10 +146,7 @@ export function DenominationScreen({ onClose }: Props) {
                           styles.optItem,
                           selectedId === opt.value && styles.optItemSelected,
                         ]}
-                        onPress={() => {
-                          setSelectedId(opt.value);
-                          setIsPickerOpen(false);
-                        }}
+                        onPress={() => handleSelect(opt.value)}
                         activeOpacity={0.7}
                       >
                         <Text

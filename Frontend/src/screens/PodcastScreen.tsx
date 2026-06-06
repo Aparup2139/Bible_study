@@ -9,14 +9,15 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
 import { usePodcastStore } from '../store/usePodcastStore';
-import { queryKeys } from '../services/queryClient';
 import {
-  MOCK_PODCAST_EPISODES,
-  MOCK_PODCAST_CHANNELS,
-  MOCK_PODCAST_CATEGORIES,
-} from '../services/mockData';
+  usePodcastEpisodes,
+  usePodcastChannels,
+  usePodcastCategories,
+  useToggleSubscribe,
+  useToggleSave,
+  useUpdateProgress,
+} from '../hooks/usePodcasts';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import type { PodcastEpisode, PodcastChannel, PodcastCategory, PodcastTab } from '../types';
 
@@ -43,6 +44,27 @@ function formatRelativeDate(iso: string): string {
 }
 
 function EpisodeCard({ episode, showDelete }: { episode: PodcastEpisode; showDelete?: boolean }) {
+  const [saved, setSaved] = React.useState(episode.isSaved);
+  const toggleSave = useToggleSave();
+  const updateProgress = useUpdateProgress();
+  const { setCurrentlyPlaying } = usePodcastStore();
+
+  const onSave = () => {
+    const next = !saved;
+    setSaved(next);
+    toggleSave.mutate(
+      { episodeId: episode.id, save: next },
+      { onError: () => setSaved(!next) },
+    );
+  };
+
+  const onPlay = () => {
+    setCurrentlyPlaying(episode);
+    // Persist the resume point. A real expo-av player would call this on a
+    // ~10s debounce + on pause; here we record the current position on play.
+    updateProgress.mutate({ episodeId: episode.id, positionSeconds: episode.playbackPosition });
+  };
+
   return (
     <TouchableOpacity
       style={styles.episodeCard}
@@ -61,11 +83,11 @@ function EpisodeCard({ episode, showDelete }: { episode: PodcastEpisode; showDel
           <Text style={styles.episodeMetaText}>{formatRelativeDate(episode.publishedAt)}</Text>
         </View>
         <View style={styles.episodeActions}>
-          <TouchableOpacity style={[styles.episodeBtn, styles.episodeBtnPrimary]}>
+          <TouchableOpacity style={[styles.episodeBtn, styles.episodeBtnPrimary]} onPress={onPlay}>
             <Text style={styles.episodeBtnText}>▶ Play</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.episodeBtn}>
-            <Text style={styles.episodeBtnText}>{showDelete ? '🗑️' : '⬇️'}</Text>
+          <TouchableOpacity style={styles.episodeBtn} onPress={onSave}>
+            <Text style={styles.episodeBtnText}>{saved ? '★' : '☆'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -75,6 +97,17 @@ function EpisodeCard({ episode, showDelete }: { episode: PodcastEpisode; showDel
 
 function ChannelCard({ channel }: { channel: PodcastChannel }) {
   const [subscribed, setSubscribed] = React.useState(channel.isSubscribed);
+  const toggleSubscribe = useToggleSubscribe();
+
+  const onToggle = () => {
+    const next = !subscribed;
+    setSubscribed(next);
+    toggleSubscribe.mutate(
+      { channelId: channel.id, subscribe: next },
+      { onError: () => setSubscribed(!next) },
+    );
+  };
+
   return (
     <View style={styles.channelCard}>
       <View style={styles.channelAvatar}>
@@ -88,7 +121,7 @@ function ChannelCard({ channel }: { channel: PodcastChannel }) {
       </View>
       <TouchableOpacity
         style={[styles.subscribeBtn, subscribed && styles.subscribedBtn]}
-        onPress={() => setSubscribed((s) => !s)}
+        onPress={onToggle}
         activeOpacity={0.8}
       >
         <Text style={styles.subscribeBtnText}>{subscribed ? 'Following' : 'Subscribe'}</Text>
@@ -129,18 +162,9 @@ export function PodcastScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { activeTab, setActiveTab } = usePodcastStore();
 
-  const { data: episodes = [] } = useQuery({
-    queryKey: queryKeys.podcasts.episodes(),
-    queryFn: async () => MOCK_PODCAST_EPISODES,
-  });
-  const { data: channels = [] } = useQuery({
-    queryKey: queryKeys.podcasts.channels(),
-    queryFn: async () => MOCK_PODCAST_CHANNELS,
-  });
-  const { data: categories = [] } = useQuery({
-    queryKey: queryKeys.podcasts.categories(),
-    queryFn: async () => MOCK_PODCAST_CATEGORIES,
-  });
+  const { data: episodes = [] } = usePodcastEpisodes();
+  const { data: channels = [] } = usePodcastChannels();
+  const { data: categories = [] } = usePodcastCategories();
 
   const downloads = episodes.filter((e) => e.isDownloaded);
   const saved = episodes.filter((e) => e.isSaved);
