@@ -13,8 +13,8 @@ interface ActionDef {
 const ACTIONS: ActionDef[] = [
   { icon: '🔴', label: 'Live', key: 'live', isActive: true },
   { icon: '🗣️', label: 'Study Chat', key: 'studychat' },
+  { icon: '📖', label: 'Ask Bible', key: 'ask' },
   { icon: '🎙️', label: 'Podcasts', key: 'podcasts' },
-  { icon: '❤️', label: 'Favorite', key: 'favorite' },
   { icon: '➕', label: 'Post', key: 'post' },
   { icon: '⛪', label: 'Denomination', key: 'denomination' },
 ];

@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { DenominationsModule } from './denominations/denominations.module';
 import { PodcastsModule } from './podcasts/podcasts.module';
+import { AgentModule } from './agent/agent.module';
+import { StreamsModule } from './streams/streams.module';
 import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -31,6 +33,10 @@ import { ScheduleModule } from '@nestjs/schedule';
     DenominationsModule,
     // Phase 3
     PodcastsModule,
+    // AI Bible agent (NVIDIA-hosted Qwen)
+    AgentModule,
+    // Phase 4 — Cloudflare Stream (live + on-demand video)
+    StreamsModule,
     // Feature modules are added per phase under ./modules/<feature>:
     //   Phase 4  StreamsModule
     //   Phase 5  ChatModule

@@ -1,5 +1,12 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Interval } from '@nestjs/schedule';
+import type { AudioMime } from './dto/podcasts.dto';
 import type {
   Paginated,
   PodcastCategory,
@@ -194,6 +201,103 @@ export class PodcastsService {
     }));
   }
 
+  // ===== Upload / create (any authenticated user) ==========================
+
+  /**
+   * Step 1 of upload: validate the target channel and mint a one-time signed
+   * URL the client uses to PUT the audio straight into Supabase Storage. No DB
+   * row is created yet — that happens in {@link createEpisode} once the bytes
+   * land, so the catalog never shows an episode whose audio failed to upload.
+   */
+  async createUploadUrl(
+    channelId: string,
+    contentType: AudioMime,
+  ): Promise<{ episodeId: string; path: string; token: string; signedUrl: string }> {
+    await this.requireChannel(channelId);
+    const episodeId = `ep_${randomUUID()}`;
+    const path = this.audioPath(channelId, episodeId, contentType);
+
+    const { data, error } = await this.supabase.admin.storage
+      .from(AUDIO_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      throw new BadRequestException(error?.message ?? 'Could not create upload URL');
+    }
+    return { episodeId, path, token: data.token, signedUrl: data.signedUrl };
+  }
+
+  /**
+   * Step 2 of upload: after the client has uploaded the audio, create the
+   * episode row. The storage path is re-derived server-side (never trusted from
+   * the client) and the object is confirmed to exist before we insert.
+   */
+  async createEpisode(
+    userId: string,
+    input: {
+      episodeId: string;
+      channelId: string;
+      title: string;
+      contentType: AudioMime;
+      durationSeconds: number;
+    },
+  ): Promise<PodcastEpisode> {
+    await this.requireChannel(input.channelId);
+    const path = this.audioPath(input.channelId, input.episodeId, input.contentType);
+
+    await this.assertObjectExists(input.channelId, path);
+
+    const { data, error } = await this.supabase.admin
+      .from('podcast_episodes')
+      .insert({
+        id: input.episodeId,
+        channel_id: input.channelId,
+        title: input.title.trim(),
+        duration_seconds: input.durationSeconds,
+        audio_path: path,
+      })
+      .select('id, channel_id, title, duration_seconds, published_at, audio_path, channel:podcast_channels(name)')
+      .single<EpisodeRow>();
+    if (error || !data) {
+      throw new BadRequestException(error?.message ?? 'Could not create episode');
+    }
+    this.logger.log(`Episode ${data.id} created by ${userId} in channel ${input.channelId}`);
+
+    return {
+      id: data.id,
+      title: data.title,
+      channelName: channelName(data.channel),
+      thumbnailEmoji: '',
+      durationMinutes: Math.round(data.duration_seconds / 60),
+      publishedAt: data.published_at,
+      audioUrl: this.audioUrl(data.audio_path),
+      isDownloaded: false,
+      isSaved: false,
+      playbackPosition: 0,
+    };
+  }
+
+  private async requireChannel(channelId: string): Promise<void> {
+    const { data, error } = await this.supabase.admin
+      .from('podcast_channels')
+      .select('id')
+      .eq('id', channelId)
+      .maybeSingle<{ id: string }>();
+    if (error) throw new BadRequestException(error.message);
+    if (!data) throw new NotFoundException(`Channel "${channelId}" not found`);
+  }
+
+  /** Confirm the uploaded object is actually present before creating its row. */
+  private async assertObjectExists(channelId: string, path: string): Promise<void> {
+    const fileName = path.slice(channelId.length + 1); // strip "<channelId>/"
+    const { data, error } = await this.supabase.admin.storage
+      .from(AUDIO_BUCKET)
+      .list(channelId, { search: fileName, limit: 1 });
+    if (error) throw new BadRequestException(error.message);
+    if (!data?.some((o) => o.name === fileName)) {
+      throw new BadRequestException('Audio not uploaded — upload the file before creating the episode');
+    }
+  }
+
   // ===== Toggles ============================================================
   async setSubscribed(userId: string, channelId: string, on: boolean): Promise<void> {
     if (on) {
@@ -335,7 +439,20 @@ export class PodcastsService {
     const { data } = this.supabase.admin.storage.from(AUDIO_BUCKET).getPublicUrl(path);
     return data.publicUrl;
   }
+
+  /** Deterministic storage object path for an episode's audio. */
+  private audioPath(channelId: string, episodeId: string, contentType: AudioMime): string {
+    return `${channelId}/${episodeId}.${MIME_EXT[contentType]}`;
+  }
 }
+
+const MIME_EXT: Record<AudioMime, string> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/aac': 'aac',
+  'audio/ogg': 'ogg',
+  'audio/wav': 'wav',
+};
 
 function channelName(channel: EpisodeRow['channel']): string {
   if (!channel) return '';

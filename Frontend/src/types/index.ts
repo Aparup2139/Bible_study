@@ -12,6 +12,21 @@ export interface UserProfile {
   createdAt: string;
 }
 
+// ─── AI Bible Agent ───────────────────────────────────────────────────────────
+
+export interface AskResponse {
+  answer: string;
+  references: string[];
+}
+
+export interface AgentChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  references?: string[];
+  isError?: boolean;
+}
+
 // ─── Live Stream ──────────────────────────────────────────────────────────────
 
 export interface LiveStream {

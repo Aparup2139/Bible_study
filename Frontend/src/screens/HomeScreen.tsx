@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '../components/VideoPlayer';
-import { ProfileSection } from '../components/ProfileSection';
 import { ActionButtons } from '../components/ActionButtons';
 import { VideoCard, SearchBar, LiveBadge } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
@@ -47,14 +46,14 @@ export function HomeScreen() {
       case 'studychat':
         setActiveScreen('studychat');
         break;
+      case 'ask':
+        setActiveScreen('askbible');
+        break;
       case 'podcasts':
         setActiveScreen('podcasts');
         break;
       case 'denomination':
         setActiveScreen('denomination');
-        break;
-      case 'favorite':
-        Alert.alert('Favorites', 'Your saved videos will appear here.');
         break;
       case 'post':
         Alert.alert('Post', 'Create and share a video post.');
@@ -85,17 +84,12 @@ export function HomeScreen() {
       {/* Sticky video player */}
       <VideoPlayer
         viewerCount={1248}
-        onMenuPress={() => Alert.alert('Menu', 'App menu coming soon.')}
+        initial={(profile.displayName?.trim()?.[0] ?? '?').toUpperCase()}
+        onAvatarPress={() => setActiveScreen('editprofile')}
       />
 
       {/* Scrollable body */}
       <View style={styles.body}>
-        {/* Profile */}
-        <ProfileSection
-          profile={profile}
-          onEditPress={() => setActiveScreen('editprofile')}
-        />
-
         {/* Action buttons */}
         <ActionButtons onPress={handleActionPress} />
 

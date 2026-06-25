@@ -15,11 +15,12 @@ const { width } = Dimensions.get('window');
 const PLAYER_HEIGHT = width * (9 / 16);
 
 interface Props {
-  onMenuPress: () => void;
+  onAvatarPress: () => void;
+  initial?: string;
   viewerCount?: number;
 }
 
-export function VideoPlayer({ onMenuPress, viewerCount = 1248 }: Props) {
+export function VideoPlayer({ onAvatarPress, initial = '?', viewerCount = 1248 }: Props) {
   const translateY = useRef(new Animated.Value(-10)).current;
   const opacity = useRef(new Animated.Value(0.8)).current;
 
@@ -69,10 +70,8 @@ export function VideoPlayer({ onMenuPress, viewerCount = 1248 }: Props) {
           <Text style={styles.appTitle}>Motion Video</Text>
           <LiveBadge />
         </View>
-        <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
+        <TouchableOpacity onPress={onAvatarPress} style={styles.avatarBtn} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.avatarText}>{initial}</Text>
         </TouchableOpacity>
       </LinearGradient>
 
@@ -141,17 +140,20 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
   },
-  menuBtn: {
-    width: 30,
-    height: 30,
+  avatarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  menuLine: {
-    width: '100%',
-    height: 3,
-    backgroundColor: '#fff',
-    borderRadius: 2,
+  avatarText: {
+    color: '#fff',
+    fontSize: Typography.lg,
+    fontWeight: Typography.bold,
   },
   bottomOverlay: {
     position: 'absolute',

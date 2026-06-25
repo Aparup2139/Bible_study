@@ -10,13 +10,17 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { File } from 'expo-file-system';
 import { api } from '../services/api';
+import { supabase } from '../services/supabase';
 import { queryKeys } from '../services/queryClient';
 import type {
   PodcastCategory,
   PodcastChannel,
   PodcastEpisode,
 } from '../types';
+
+const AUDIO_BUCKET = 'podcast-audio';
 
 interface Paginated<T> {
   items: T[];
@@ -78,6 +82,62 @@ export function useToggleSave() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.podcasts.episodes() });
       qc.invalidateQueries({ queryKey: queryKeys.podcasts.saved() });
+    },
+  });
+}
+
+export interface UploadEpisodeInput {
+  channelId: string;
+  title: string;
+  /** Local file URI from the document picker. */
+  uri: string;
+  /** One of the bucket's allowed audio MIME types. */
+  contentType: string;
+  durationSeconds: number;
+}
+
+/**
+ * Post a new podcast episode. Three steps, all behind one mutation:
+ *   1. Ask the API for a signed upload URL (reserves an episode id).
+ *   2. Upload the mp3 bytes directly to Supabase Storage (not through our API).
+ *   3. Create the episode row, which makes it browsable/playable for everyone.
+ */
+export function useUploadEpisode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      channelId,
+      title,
+      uri,
+      contentType,
+      durationSeconds,
+    }: UploadEpisodeInput): Promise<PodcastEpisode> => {
+      const { episodeId, path, token } = await api.post<{
+        episodeId: string;
+        path: string;
+        token: string;
+        signedUrl: string;
+      }>('/podcasts/uploads', { channelId, contentType });
+
+      // Read the local file into bytes. fetch(uri).blob() is unreliable on
+      // Android, so use expo-file-system which returns a Uint8Array directly.
+      const bytes = await new File(uri).bytes();
+      const { error } = await supabase.storage
+        .from(AUDIO_BUCKET)
+        .uploadToSignedUrl(path, token, bytes, { contentType });
+      if (error) throw error;
+
+      return api.post<PodcastEpisode>('/podcasts/episodes', {
+        episodeId,
+        channelId,
+        title,
+        contentType,
+        durationSeconds,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.podcasts.episodes() });
+      qc.invalidateQueries({ queryKey: queryKeys.podcasts.channels() });
     },
   });
 }

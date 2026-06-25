@@ -5,6 +5,7 @@ import { useAppStore } from '../src/store/useAppStore';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { LiveStreamScreen } from '../src/screens/LiveStreamScreen';
 import { StudyChatScreen } from '../src/screens/StudyChatScreen';
+import { AskScreen } from '../src/screens/AskScreen';
 import { PodcastScreen } from '../src/screens/PodcastScreen';
 import { DenominationScreen } from '../src/screens/DenominationScreen';
 import { EditProfileScreen } from '../src/screens/EditProfileScreen';
@@ -44,6 +45,16 @@ export default function Index() {
         onRequestClose={close}
       >
         <StudyChatScreen onClose={close} />
+      </Modal>
+
+      {/* Ask the Bible (AI agent) overlay */}
+      <Modal
+        visible={activeScreen === 'askbible'}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={close}
+      >
+        <AskScreen onClose={close} />
       </Modal>
 
       {/* Podcasts overlay */}

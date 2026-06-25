@@ -7,7 +7,7 @@ interface AppState {
   setProfile: (profile: Partial<UserProfile>) => void;
 
   // Active screen overlays
-  activeScreen: 'home' | 'livestream' | 'studychat' | 'podcasts' | 'denomination' | 'editprofile';
+  activeScreen: 'home' | 'livestream' | 'studychat' | 'podcasts' | 'denomination' | 'editprofile' | 'askbible';
   setActiveScreen: (screen: AppState['activeScreen']) => void;
 
   // Search

@@ -18,6 +18,7 @@ import type { Env } from '../config/env';
 export class SupabaseService implements OnModuleInit {
   private readonly logger = new Logger(SupabaseService.name);
   private adminClient: SupabaseClient | null = null;
+  private anonClient: SupabaseClient | null = null;
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 
@@ -41,6 +42,21 @@ export class SupabaseService implements OnModuleInit {
       });
     }
     return this.adminClient;
+  }
+
+  /**
+   * Anon client (publishable key, no user session). Used for server-side calls
+   * that must run as "anon", e.g. password sign-in on behalf of a username.
+   */
+  get anon(): SupabaseClient {
+    if (!this.anonClient) {
+      const url = this.requireConfig('SUPABASE_URL');
+      const key = this.requireConfig('SUPABASE_ANON_KEY');
+      this.anonClient = createClient(url, key, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+    }
+    return this.anonClient;
   }
 
   /** Client scoped to an end-user's access token, so RLS applies as that user. */

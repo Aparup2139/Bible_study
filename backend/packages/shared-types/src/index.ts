@@ -8,3 +8,5 @@ export * from './audio-room';
 export * from './podcast';
 export * from './denomination';
 export * from './realtime';
+export * from './agent';
+export * from './video-stream';
