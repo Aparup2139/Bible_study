@@ -8,13 +8,11 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { ActionButtons } from '../components/ActionButtons';
 import { VideoCard, SearchBar, LiveBadge } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
-import { queryKeys } from '../services/queryClient';
-import { MOCK_LIVE_STREAMS } from '../services/mockData';
+import { useLiveStreams } from '../hooks/useLiveStreams';
 import { Colors, Typography, Spacing } from '../theme';
 import type { LiveStream } from '../types';
 
@@ -23,14 +21,10 @@ const CARD_GAP = Spacing.base;
 const CARD_WIDTH = (width - Spacing.lg * 2 - CARD_GAP) / 2;
 
 export function HomeScreen() {
-  const { profile, searchQuery, setSearchQuery, setActiveScreen } = useAppStore();
+  const { profile, searchQuery, setSearchQuery, setActiveScreen, setWatchStreamId } = useAppStore();
 
-  // In a real app this would hit an API; for now resolved from mock data
-  const { data: streams = [] } = useQuery<LiveStream[]>({
-    queryKey: queryKeys.liveStreams(),
-    queryFn: async () => MOCK_LIVE_STREAMS,
-    staleTime: 30_000,
-  });
+  // Real "Streaming Now" feed from the backend (GET /streams).
+  const { data: streams = [] } = useLiveStreams();
 
   const filteredStreams = searchQuery.trim()
     ? streams.filter((s) =>
@@ -56,14 +50,15 @@ export function HomeScreen() {
         setActiveScreen('denomination');
         break;
       case 'post':
-        Alert.alert('Post', 'Create and share a video post.');
+        setActiveScreen('post');
         break;
     }
   }, [setActiveScreen]);
 
   const handleVideoPress = useCallback((stream: LiveStream) => {
-    Alert.alert(stream.title, `${stream.viewerCount.toLocaleString()} watching`);
-  }, []);
+    setWatchStreamId(stream.id);
+    setActiveScreen('liveviewer');
+  }, [setWatchStreamId, setActiveScreen]);
 
   const renderStream = useCallback(
     ({ item }: { item: LiveStream }) => (

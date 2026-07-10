@@ -21,11 +21,11 @@ export const envSchema = z.object({
   // Optional — when unset, the API falls back to direct Postgres UPSERTs.
   REDIS_URL: z.string().min(1).optional(),
 
-  // AI Bible agent — NVIDIA-hosted Qwen (OpenAI-compatible API).
+  // AI Bible agent — NVIDIA-hosted GLM (OpenAI-compatible API).
   // Optional: when NVIDIA_API_KEY is unset the /agent/ask endpoint returns 503.
   NVIDIA_API_KEY: z.string().min(1).optional(),
   NVIDIA_BASE_URL: z.string().url().default('https://integrate.api.nvidia.com/v1'),
-  NVIDIA_MODEL: z.string().default('qwen/qwen3.5-397b-a17b'),
+  NVIDIA_MODEL: z.string().default('z-ai/glm-5.2'),
 
   // Phase 4 — Cloudflare Stream (live + on-demand video).
   // All optional: when CLOUDFLARE_STREAM_API_TOKEN is unset, /streams endpoints
@@ -36,6 +36,12 @@ export const envSchema = z.object({
   CLOUDFLARE_STREAM_KEY_ID: z.string().min(1).optional(), // signing key id (signed playback)
   CLOUDFLARE_STREAM_KEY_PEM: z.string().min(1).optional(), // base64 PEM from POST /stream/keys
   CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(1).optional(), // from PUT /stream/webhook
+
+  // Agora Interactive Live Streaming (replaces Cloudflare live; CF stays for VOD).
+  // Optional: when unset, go-live/token endpoints return 503 and the rest of the
+  // API is unaffected. App Certificate must be enabled on the Agora project.
+  AGORA_APP_ID: z.string().min(1).optional(),
+  AGORA_APP_CERTIFICATE: z.string().min(1).optional(), // server-side only, never sent to clients
 });
 
 export type Env = z.infer<typeof envSchema>;

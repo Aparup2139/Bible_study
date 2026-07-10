@@ -2,18 +2,26 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import type {
   CreateStreamInput,
   DirectUploadResult,
   GoLiveResult,
   Paginated,
+  RtcTokenResult,
   StreamRecording,
   StreamSummary,
 } from '@bibleway/shared-types';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CloudflareStreamService } from './cloudflare-stream.service';
+import { AgoraService } from './agora.service';
+
+/** Host uid inside every Agora channel; viewers join with wildcard uid 0. */
+const HOST_UID = 1;
+const AUDIENCE_UID = 0;
 
 const PAGE_SIZE = 20;
 
@@ -49,16 +57,23 @@ export interface WebhookBody {
 
 @Injectable()
 export class StreamsService {
+  private readonly logger = new Logger(StreamsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly cf: CloudflareStreamService,
+    private readonly agora: AgoraService,
   ) {}
 
-  /** Host goes live: create a Cloudflare live input, persist the row, return ingest creds. */
+  /**
+   * Host goes live: persist the row (already 'live' — the host joins the Agora
+   * channel immediately after) and return the channel + publisher token. The
+   * channel name is the row's uuid, so no extra column is needed.
+   */
   async goLive(hostId: string, input: CreateStreamInput): Promise<GoLiveResult> {
+    // Fail before inserting so an unconfigured server never creates orphan rows.
+    const appId = this.agora.appId;
     const isPublic = input.isPublic !== false;
-    const requireSigned = !isPublic;
-    const li = await this.cf.createLiveInput(input.title, requireSigned);
 
     const { data, error } = await this.supabase.admin
       .from('live_streams')
@@ -67,24 +82,67 @@ export class StreamsService {
         title: input.title,
         subtitle: input.subtitle ?? '',
         denomination_id: input.denominationId ?? null,
-        cf_live_input_id: li.uid,
-        customer_code: this.cf.customerCode,
-        require_signed: requireSigned,
+        cf_live_input_id: null,
+        customer_code: '',
+        require_signed: !isPublic,
         is_public: isPublic,
-        status: 'idle',
+        status: 'live',
+        started_at: new Date().toISOString(),
       })
       .select('id')
       .single();
     const inserted = data as { id: string } | null;
     if (error || !inserted) throw new BadRequestException(error?.message ?? 'Failed to create stream');
 
+    const t = this.agora.buildRtcToken(inserted.id, HOST_UID, 'publisher');
     return {
       streamId: inserted.id,
-      liveInputId: li.uid,
-      rtmpsUrl: li.rtmps?.url ?? '',
-      rtmpsKey: li.rtmps?.streamKey ?? '',
-      srtUrl: li.srt?.url,
+      channel: inserted.id,
+      uid: HOST_UID,
+      token: t.token,
+      appId,
+      expiresAt: t.expiresAt,
     };
+  }
+
+  /** RTC token for a stream's channel. Publisher for the host, subscriber otherwise. */
+  async getRtcToken(id: string, userId: string): Promise<RtcTokenResult> {
+    const row = await this.findRow(id);
+    if (row.status === 'ended') throw new BadRequestException('Stream has ended');
+    const isHost = row.host_id === userId;
+    const role = isHost ? ('publisher' as const) : ('subscriber' as const);
+    const uid = isHost ? HOST_UID : AUDIENCE_UID;
+    const t = this.agora.buildRtcToken(row.id, uid, role);
+    return {
+      channel: row.id,
+      uid,
+      token: t.token,
+      appId: this.agora.appId,
+      expiresAt: t.expiresAt,
+      role,
+    };
+  }
+
+  /** Viewer joined/left: atomic counter bump via SQL RPC (clamped at 0, live rows only). */
+  async bumpViewers(id: string, delta: 1 | -1): Promise<{ viewerCount: number }> {
+    const { data, error } = await this.supabase.admin.rpc('bump_viewer_count', {
+      stream_id: id,
+      delta,
+    });
+    if (error) throw new BadRequestException(error.message);
+    return { viewerCount: (data as number | null) ?? 0 };
+  }
+
+  /** Safety net: auto-end streams whose host crashed without calling /end. */
+  @Cron(CronExpression.EVERY_30_MINUTES)
+  async sweepStaleStreams(): Promise<void> {
+    const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { error } = await this.supabase.admin
+      .from('live_streams')
+      .update({ status: 'ended', ended_at: new Date().toISOString(), viewer_count: 0 })
+      .eq('status', 'live')
+      .lt('started_at', cutoff);
+    if (error) this.logger.warn(`Stale-stream sweep failed: ${error.message}`);
   }
 
   /** Live feed — cursor-paginated DB read (no per-row network calls; rule #4). */
@@ -113,12 +171,33 @@ export class StreamsService {
     };
   }
 
-  /** Detail — refreshes the live viewer count from Cloudflare for an accurate badge. */
+  /**
+   * Detail — asks Cloudflare's lifecycle endpoint whether the live input is
+   * currently broadcasting, so the app detects "live" by polling this route
+   * (no webhook / public tunnel required for local demos). When live, it exposes
+   * the HLS URL + refreshes the viewer count, and flips the DB row to 'live' so
+   * the feed reflects it too.
+   */
   async getStream(id: string): Promise<StreamSummary> {
     const row = await this.findRow(id);
     const summary = this.toSummary(row);
-    if (row.status === 'live' && row.cf_live_input_id) {
-      summary.viewerCount = await this.cf.getLiveViewers(row.cf_live_input_id);
+    if (row.cf_live_input_id) {
+      const status = await this.cf.getLiveStatus(row.cf_live_input_id);
+      if (status.live) {
+        summary.status = 'live';
+        summary.playbackUrl = this.cf.hlsUrl(row.cf_live_input_id, row.require_signed);
+        summary.viewerCount = await this.cf.getLiveViewers(row.cf_live_input_id);
+        if (row.status !== 'live') {
+          await this.supabase.admin
+            .from('live_streams')
+            .update({
+              status: 'live',
+              started_at: row.started_at ?? new Date().toISOString(),
+              cf_video_uid: status.videoUID ?? null,
+            })
+            .eq('id', id);
+        }
+      }
     }
     return summary;
   }
@@ -129,7 +208,7 @@ export class StreamsService {
     if (row.cf_live_input_id) await this.cf.disableLiveInput(row.cf_live_input_id);
     const { error } = await this.supabase.admin
       .from('live_streams')
-      .update({ status: 'ended', ended_at: new Date().toISOString() })
+      .update({ status: 'ended', ended_at: new Date().toISOString(), viewer_count: 0 })
       .eq('id', id);
     if (error) throw new BadRequestException(error.message);
   }
@@ -153,7 +232,7 @@ export class StreamsService {
 
   async createUpload(maxDurationSeconds: number): Promise<DirectUploadResult> {
     const r = await this.cf.createDirectUpload(maxDurationSeconds, false);
-    return { uploadUrl: r.uploadURL, uid: r.uid };
+    return { uploadUrl: r.uploadURL, uid: r.uid, playbackUrl: this.cf.hlsUrl(r.uid, false) };
   }
 
   // ===== Webhook handlers ====================================================

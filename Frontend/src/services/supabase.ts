@@ -10,6 +10,7 @@
  *   EXPO_PUBLIC_SUPABASE_ANON_KEY   (the publishable / anon key — safe on device)
  */
 import 'react-native-url-polyfill/auto';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
@@ -64,6 +65,27 @@ const ChunkedSecureStore = {
   },
 };
 
+/**
+ * `expo-secure-store` only exists on native. On web (and the expo-router Node
+ * prerender that runs during `expo start`) its native module is absent, so calls
+ * throw `getValueWithKeyAsync is not a function` and crash the dev server. Use a
+ * localStorage-backed adapter there that degrades to a no-op when even
+ * localStorage is unavailable (SSR), so startup never throws.
+ */
+const WebStorage = {
+  async getItem(key: string): Promise<string | null> {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
+  },
+};
+
+const AuthStorage = Platform.OS === 'web' ? WebStorage : ChunkedSecureStore;
+
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as
   | string
@@ -86,7 +108,7 @@ export const supabase = createClient(
   SUPABASE_ANON_KEY ?? 'public-anon-placeholder',
   {
     auth: {
-    storage: ChunkedSecureStore,
+    storage: AuthStorage,
     autoRefreshToken: true,
     persistSession: true,
     // No URL-based session detection on native (deep-link callback handles OAuth).

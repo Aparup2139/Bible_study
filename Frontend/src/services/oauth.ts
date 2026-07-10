@@ -61,10 +61,26 @@ export async function signInWithApple(): Promise<OAuthResult> {
   }
 }
 
+/**
+ * The OAuth 2.0 **Web** client ID from Google Cloud Console — the same one
+ * registered under Supabase → Auth → Providers → Google. Required for the
+ * native lib to mint an idToken Supabase will accept.
+ */
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID as string | undefined;
+
+let googleConfigured = false;
+
 export async function signInWithGoogle(): Promise<OAuthResult> {
   if (isExpoGo) return { ok: false, error: 'Google sign-in needs the installed app (a dev build), not Expo Go.' };
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    return { ok: false, error: 'Google sign-in is not configured yet (missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).' };
+  }
   try {
     const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+    if (!googleConfigured) {
+      GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+      googleConfigured = true;
+    }
     await GoogleSignin.hasPlayServices();
     const result = await GoogleSignin.signIn();
     // The lib has returned the token at result.idToken (v13-) or result.data.idToken (v14+).

@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../src/store/useAppStore';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { LiveStreamScreen } from '../src/screens/LiveStreamScreen';
+import { LiveViewerScreen } from '../src/screens/LiveViewerScreen';
 import { StudyChatScreen } from '../src/screens/StudyChatScreen';
 import { AskScreen } from '../src/screens/AskScreen';
 import { PodcastScreen } from '../src/screens/PodcastScreen';
 import { DenominationScreen } from '../src/screens/DenominationScreen';
 import { EditProfileScreen } from '../src/screens/EditProfileScreen';
+import { UploadVideoScreen } from '../src/screens/UploadVideoScreen';
 import { Colors } from '../src/theme';
 
 /**
@@ -17,10 +19,14 @@ import { Colors } from '../src/theme';
  * its state and the video player keeps its position in the scroll view.
  */
 export default function Index() {
-  const { activeScreen, setActiveScreen } = useAppStore();
+  const { activeScreen, setActiveScreen, watchStreamId, setWatchStreamId } = useAppStore();
   const insets = useSafeAreaInsets();
 
   const close = () => setActiveScreen('home');
+  const closeViewer = () => {
+    setActiveScreen('home');
+    setWatchStreamId(null);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: 0 }]}>
@@ -35,6 +41,16 @@ export default function Index() {
         onRequestClose={close}
       >
         <LiveStreamScreen onClose={close} />
+      </Modal>
+
+      {/* Live viewer overlay (watch someone else's stream) */}
+      <Modal
+        visible={activeScreen === 'liveviewer' && Boolean(watchStreamId)}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeViewer}
+      >
+        {watchStreamId ? <LiveViewerScreen streamId={watchStreamId} onClose={closeViewer} /> : <View />}
       </Modal>
 
       {/* Study Chat overlay */}
@@ -85,6 +101,16 @@ export default function Index() {
         onRequestClose={close}
       >
         <EditProfileScreen onClose={close} />
+      </Modal>
+
+      {/* Upload Video (Cloudflare Stream VOD) overlay */}
+      <Modal
+        visible={activeScreen === 'post'}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={close}
+      >
+        <UploadVideoScreen onClose={close} />
       </Modal>
     </View>
   );

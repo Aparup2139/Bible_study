@@ -80,13 +80,20 @@ export class CloudflareStreamService {
 
   // ===== Live ================================================================
 
-  /** Create a persistent live input that auto-records each broadcast to VOD. */
+  /**
+   * Create a persistent live input for broadcasting.
+   *
+   * `recording.mode` is 'off': live delivery (HLS) works without any storage
+   * quota, whereas auto-recording each broadcast to VOD reserves paid storage
+   * minutes. Switch this to 'automatic' once a Cloudflare Stream storage plan is
+   * active if you want recordings.
+   */
   createLiveInput(name: string, requireSigned: boolean): Promise<CfLiveInput> {
     return this.api<CfLiveInput>('/live_inputs', {
       method: 'POST',
       body: JSON.stringify({
         meta: { name },
-        recording: { mode: 'automatic', requireSignedURLs: requireSigned, timeoutSeconds: 0 },
+        recording: { mode: 'off', requireSignedURLs: requireSigned, timeoutSeconds: 0 },
       }),
     });
   }

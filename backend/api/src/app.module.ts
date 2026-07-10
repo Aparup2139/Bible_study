@@ -33,9 +33,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     DenominationsModule,
     // Phase 3
     PodcastsModule,
-    // AI Bible agent (NVIDIA-hosted Qwen)
+    // AI Bible agent (NVIDIA-hosted GLM)
     AgentModule,
-    // Phase 4 — Cloudflare Stream (live + on-demand video)
+    // Phase 4 — video: Agora live streaming + Cloudflare Stream VOD
     StreamsModule,
     // Feature modules are added per phase under ./modules/<feature>:
     //   Phase 4  StreamsModule

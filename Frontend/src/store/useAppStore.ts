@@ -7,8 +7,12 @@ interface AppState {
   setProfile: (profile: Partial<UserProfile>) => void;
 
   // Active screen overlays
-  activeScreen: 'home' | 'livestream' | 'studychat' | 'podcasts' | 'denomination' | 'editprofile' | 'askbible';
+  activeScreen: 'home' | 'livestream' | 'liveviewer' | 'studychat' | 'podcasts' | 'denomination' | 'editprofile' | 'askbible' | 'post';
   setActiveScreen: (screen: AppState['activeScreen']) => void;
+
+  // Stream being watched in the live viewer overlay
+  watchStreamId: string | null;
+  setWatchStreamId: (id: string | null) => void;
 
   // Search
   searchQuery: string;
@@ -34,6 +38,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   activeScreen: 'home',
   setActiveScreen: (screen) => set({ activeScreen: screen }),
+
+  watchStreamId: null,
+  setWatchStreamId: (id) => set({ watchStreamId: id }),
 
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),

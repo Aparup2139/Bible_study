@@ -17,3 +17,4 @@ web-build/
 .env.test.local
 .env.production.local
 .claude/
+agora-web-test.html

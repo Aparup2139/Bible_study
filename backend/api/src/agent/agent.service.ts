@@ -82,9 +82,6 @@ export class AgentService {
           messages,
           temperature: 0.6,
           top_p: 0.95,
-          top_k: 20,
-          presence_penalty: 0,
-          repetition_penalty: 1,
           // Cap on answer length; raise toward the model's 16384 max for longer replies.
           max_tokens: 2048,
           stream: false,

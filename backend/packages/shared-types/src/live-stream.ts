@@ -18,10 +18,3 @@ export interface LiveStream {
   quality: StreamQuality;
   denomination: string | null;
 }
-
-export interface CreateStreamInput {
-  title: string;
-  isPublic: boolean;
-  quality: StreamQuality;
-  denomination?: string | null;
-}

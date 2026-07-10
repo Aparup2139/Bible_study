@@ -1,4 +1,4 @@
-// Cloudflare Stream — live + on-demand video (Phase 4).
+// Video streaming — Agora interactive live streaming + Cloudflare Stream VOD.
 // Self-contained types for the video-streaming feature. Intentionally separate
 // from the existing `LiveStream` type (live-stream.ts) so this feature is additive
 // and does not change any other part of the app.
@@ -13,14 +13,26 @@ export interface CreateStreamInput {
 
 export type StreamStatus = 'idle' | 'live' | 'ended';
 
-/** Returned only to the host when going live — contains ingest credentials. */
+/** Returned only to the host when going live — Agora channel + publisher token. */
 export interface GoLiveResult {
   streamId: string;
-  liveInputId: string;
-  /** RTMPS ingest URL (e.g. rtmps://live.cloudflare.com:443/live/) — give to the broadcaster only. */
-  rtmpsUrl: string;
-  rtmpsKey: string;
-  srtUrl?: string;
+  /** Agora channel name (== streamId). */
+  channel: string;
+  /** Host uid (fixed 1). */
+  uid: number;
+  token: string;
+  appId: string;
+  expiresAt: string;
+}
+
+/** RTC token for joining a stream's Agora channel; role decided server-side. */
+export interface RtcTokenResult {
+  channel: string;
+  uid: number;
+  token: string;
+  appId: string;
+  expiresAt: string;
+  role: 'publisher' | 'subscriber';
 }
 
 /** A live or ended stream as shown in the feed / detail. */
@@ -51,4 +63,6 @@ export interface StreamRecording {
 export interface DirectUploadResult {
   uploadUrl: string;
   uid: string;
+  /** Public HLS .m3u8 to play once processing finishes (built from customer code + uid). */
+  playbackUrl: string;
 }

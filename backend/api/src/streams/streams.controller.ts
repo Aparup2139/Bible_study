@@ -14,6 +14,7 @@ import type {
   DirectUploadResult,
   GoLiveResult,
   Paginated,
+  RtcTokenResult,
   StreamRecording,
   StreamSummary,
 } from '@bibleway/shared-types';
@@ -31,11 +32,30 @@ export class StreamsController {
     private readonly cf: CloudflareStreamService,
   ) {}
 
-  /** Go live: creates a Cloudflare live input; returns the RTMPS url + key to the host only. */
+  /** Go live: registers the stream and returns the Agora channel + publisher token. */
   @Post()
   @UseGuards(SupabaseAuthGuard)
   goLive(@Body() dto: CreateStreamDto, @CurrentUser() user: AuthUser): Promise<GoLiveResult> {
     return this.streams.goLive(user.id, dto);
+  }
+
+  /** RTC token for a stream's channel — publisher for the host, subscriber for viewers. */
+  @Post(':id/token')
+  @UseGuards(SupabaseAuthGuard)
+  token(@Param('id') id: string, @CurrentUser() user: AuthUser): Promise<RtcTokenResult> {
+    return this.streams.getRtcToken(id, user.id);
+  }
+
+  @Post(':id/viewers/join')
+  @UseGuards(SupabaseAuthGuard)
+  joinViewer(@Param('id') id: string): Promise<{ viewerCount: number }> {
+    return this.streams.bumpViewers(id, 1);
+  }
+
+  @Post(':id/viewers/leave')
+  @UseGuards(SupabaseAuthGuard)
+  leaveViewer(@Param('id') id: string): Promise<{ viewerCount: number }> {
+    return this.streams.bumpViewers(id, -1);
   }
 
   /** Mint a one-time direct-creator upload URL (client uploads a VOD without our token). */

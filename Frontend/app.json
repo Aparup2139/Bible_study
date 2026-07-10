@@ -19,7 +19,8 @@
         "NSCameraUsageDescription": "BibleWay uses your camera for live streaming.",
         "NSMicrophoneUsageDescription": "BibleWay uses your microphone for live streaming and Study Chat.",
         "NSPhotoLibraryUsageDescription": "BibleWay accesses your photo library to update your profile photo."
-      }
+      },
+      "bitcode": false
     },
     "android": {
       "adaptiveIcon": {
@@ -28,9 +29,15 @@
       },
       "package": "com.bibleway.app",
       "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.INTERNET",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH"
       ]
     },
     "web": {
@@ -56,10 +63,24 @@
       "expo-asset",
       "expo-font",
       "expo-secure-store",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c4dfb1b7-f5c3-42e4-ba81-06c5c0e914d7"
+      }
     }
   }
 }

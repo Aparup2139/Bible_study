@@ -1,473 +1,313 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  Animated,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, PermissionsAndroid, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLiveStore } from '../store/useLiveStore';
+import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
-import type { ChatMessage } from '../types';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { useAppStore } from '../store/useAppStore';
+import { useGoLive, useEndStream, useRtcToken, useStreamDetail } from '../hooks/useLiveStreams';
+import { getAgora, getEngine, destroyEngine, isAgoraAvailable } from '../services/agoraEngine';
 
 interface Props {
   onClose: () => void;
 }
 
+/** Host uid inside every Agora channel (matches the backend's HOST_UID). */
+const HOST_UID = 1;
+
+/**
+ * Agora does NOT request runtime permissions itself — without these it silently
+ * captures black frames instead of failing.
+ */
+async function ensureMediaPermissions(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  const res = await PermissionsAndroid.requestMultiple([
+    PermissionsAndroid.PERMISSIONS.CAMERA,
+    PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+  ]);
+  return Object.values(res).every((v) => v === PermissionsAndroid.RESULTS.GRANTED);
+}
+
+/**
+ * Host live streaming over Agora. GO LIVE registers the stream on the backend
+ * (so it appears in the Home feed), then broadcasts the phone camera into the
+ * stream's Agora channel. Requires a dev build (react-native-agora is native);
+ * under Expo Go it shows a build prompt.
+ */
 export function LiveStreamScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const {
-    status,
-    setStatus,
-    viewerCount,
-    setViewerCount,
-    countdown,
-    setCountdown,
-    isChatVisible,
-    toggleChat,
-    messages,
-    addMessage,
-  } = useLiveStore();
+  const profile = useAppStore((s) => s.profile);
+  const goLive = useGoLive();
+  const endStream = useEndStream();
+  const rtcToken = useRtcToken();
 
-  const [chatInput, setChatInput] = useState('');
-  const countdownOpacity = useRef(new Animated.Value(0)).current;
-  const countdownScale = useRef(new Animated.Value(0.5)).current;
-  const chatScrollRef = useRef<ScrollView>(null);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'live' | 'error'>('idle');
+  const [error, setError] = useState('');
+  const [streamId, setStreamId] = useState<string | null>(null);
+  // The native video view attaches itself to the engine exactly once, on mount
+  // (its callApi prop → setupLocalVideo, silently dropped if the engine doesn't
+  // exist yet). Mount it only after getEngine() has initialized the engine.
+  const [engineReady, setEngineReady] = useState(false);
 
-  // Viewer count simulator when streaming
-  useEffect(() => {
-    if (status !== 'live') return;
-    const interval = setInterval(() => {
-      setViewerCount(Math.floor(Math.random() * 500) + 100);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [status, setViewerCount]);
+  const engineRef = useRef<IRtcEngine | null>(null);
+  const handlerRef = useRef<IRtcEngineEventHandler | null>(null);
+  const streamIdRef = useRef<string | null>(null);
 
-  // Countdown animation per tick
-  const animateCountdownNumber = useCallback(() => {
-    countdownOpacity.setValue(0);
-    countdownScale.setValue(0.5);
-    Animated.parallel([
-      Animated.timing(countdownOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.spring(countdownScale, { toValue: 1, useNativeDriver: true }),
-    ]).start();
-  }, [countdownOpacity, countdownScale]);
+  // Viewer count comes from the backend (Agora doesn't report audience joins
+  // to broadcasters in the live-broadcast profile).
+  const { data: detail } = useStreamDetail(streamId, status === 'live');
+  const viewers = detail?.viewerCount ?? 0;
 
-  // Countdown logic
-  useEffect(() => {
-    if (status !== 'countdown') return;
-    animateCountdownNumber();
-    if (countdown <= 0) {
-      setStatus('live');
-      setViewerCount(42);
-      return;
+  const agoraReady = isAgoraAvailable();
+
+  const stopBroadcast = useCallback((endOnServer: boolean) => {
+    const engine = engineRef.current;
+    if (engine) {
+      try {
+        if (handlerRef.current) engine.unregisterEventHandler(handlerRef.current);
+        engine.stopPreview();
+        engine.leaveChannel();
+      } catch {
+        /* engine may already be gone */
+      }
     }
-    const timer = setTimeout(() => {
-      setCountdown(countdown - 1);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [status, countdown, setStatus, setCountdown, setViewerCount, animateCountdownNumber]);
+    destroyEngine();
+    engineRef.current = null;
+    handlerRef.current = null;
+    setEngineReady(false);
+    if (endOnServer && streamIdRef.current) endStream.mutate(streamIdRef.current);
+    streamIdRef.current = null;
+    setStreamId(null);
+    setStatus('idle');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleGoLive = useCallback(() => {
-    if (status === 'idle') {
-      setCountdown(5);
-      setStatus('countdown');
-    } else if (status === 'live') {
-      setStatus('ended');
-      setTimeout(() => setStatus('idle'), 1500);
-    }
-  }, [status, setStatus, setCountdown]);
-
-  const handleSendMessage = useCallback(() => {
-    if (!chatInput.trim()) return;
-    const msg: ChatMessage = {
-      id: Date.now().toString(),
-      userId: 'me',
-      username: 'You',
-      text: chatInput.trim(),
-      sentAt: new Date().toISOString(),
-      roomId: 'main',
+  // Never strand a live DB row if the modal is dismissed mid-broadcast.
+  useEffect(() => {
+    return () => {
+      if (streamIdRef.current) stopBroadcast(true);
     };
-    addMessage(msg);
-    setChatInput('');
-    setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [chatInput, addMessage]);
+  }, [stopBroadcast]);
 
-  const isStreaming = status === 'live';
+  const renewToken = useCallback(async () => {
+    const id = streamIdRef.current;
+    const engine = engineRef.current;
+    if (!id || !engine) return;
+    try {
+      const t = await rtcToken.mutateAsync(id);
+      engine.renewToken(t.token);
+    } catch {
+      /* next expiry event retries */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleGoLive = useCallback(async () => {
+    const agora = getAgora();
+    if (!agora) return;
+    setError('');
+    setStatus('connecting');
+    try {
+      if (!(await ensureMediaPermissions())) {
+        setStatus('error');
+        setError('Camera and microphone permission are required to go live. Enable them in Settings → Apps → BibleWay → Permissions.');
+        return;
+      }
+      const title = `${profile.displayName}'s live`;
+      const res = await goLive.mutateAsync({ title });
+      streamIdRef.current = res.streamId;
+      setStreamId(res.streamId);
+
+      const engine = getEngine(res.appId);
+      engineRef.current = engine;
+      setEngineReady(true);
+      const handler: IRtcEngineEventHandler = {
+        onJoinChannelSuccess: () => setStatus('live'),
+        onTokenPrivilegeWillExpire: () => void renewToken(),
+        onRequestToken: () => void renewToken(),
+      };
+      handlerRef.current = handler;
+      engine.registerEventHandler(handler);
+      engine.enableVideo();
+      engine.setVideoEncoderConfiguration({
+        dimensions: { width: 720, height: 1280 },
+        frameRate: 24,
+      });
+      engine.startPreview();
+      engine.joinChannel(res.token, res.channel, HOST_UID, {
+        clientRoleType: agora.ClientRoleType.ClientRoleBroadcaster,
+        publishCameraTrack: true,
+        publishMicrophoneTrack: true,
+      });
+    } catch (e) {
+      stopBroadcast(true);
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Could not start the stream.');
+    }
+  }, [goLive, profile.displayName, renewToken, stopBroadcast]);
+
+  const handleEnd = useCallback(() => {
+    stopBroadcast(true);
+    onClose();
+  }, [stopBroadcast, onClose]);
+
+  // ── Expo Go (or Agora unavailable): explain, don't crash ──
+  if (!agoraReady) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + Spacing.base }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <Text style={styles.close}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Go Live</Text>
+          <View style={{ width: 48 }} />
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.hero}>📹</Text>
+          <Text style={styles.heading}>Live needs the dev build</Text>
+          <Text style={styles.sub}>
+            Camera live streaming uses Agora, a native module that isn't in Expo Go. Install
+            the custom dev build (eas build --profile development) to broadcast. Everything
+            else in the app works here in Expo Go.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const agora = getAgora()!;
+  // TextureView on Android: this screen lives inside a RN Modal, and a
+  // SurfaceView composites behind the Modal's window — video renders black.
+  // iOS keeps RtcSurfaceView (a plain UIView there; RtcTextureView is Android-only).
+  const VideoView = Platform.OS === 'android' ? agora.RtcTextureView : agora.RtcSurfaceView;
+  const isBroadcasting = status === 'live' || status === 'connecting';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Background */}
-      <LinearGradient
-        colors={isStreaming ? [Colors.gradientRedStart, Colors.gradientRedEnd] : ['#1a1a1a', '#0a0a0a']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Close button */}
-      <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
-        <Text style={styles.closeBtnText}>✕</Text>
-      </TouchableOpacity>
-
-      {/* Live badge + viewer count */}
-      {isStreaming && (
-        <>
-          <View style={styles.liveBadgeTop}>
-            <View style={styles.liveDot} />
+    <View style={[styles.container, { paddingTop: insets.top + Spacing.base }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={isBroadcasting ? handleEnd : onClose} hitSlop={12}>
+          <Text style={styles.close}>✕</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Go Live</Text>
+        {status === 'live' ? (
+          <View style={styles.liveBadge}>
+            <View style={styles.dot} />
             <Text style={styles.liveBadgeText}>LIVE</Text>
           </View>
-          <View style={styles.viewerCountBadge}>
-            <Text style={styles.viewerCountText}>👁️  {viewerCount.toLocaleString()}</Text>
-          </View>
-        </>
-      )}
-
-      {/* Pre-live preview content */}
-      {status === 'idle' && (
-        <View style={styles.previewContent}>
-          <Text style={styles.previewIcon}>📹</Text>
-          <Text style={styles.previewTitle}>Ready to Go Live?</Text>
-          <Text style={styles.previewSubtitle}>Share your message with the world</Text>
-
-          <View style={styles.infoBox}>
-            {[
-              ['Stream to:', 'Public'],
-              ['Quality:', 'HD 720p'],
-              ['Camera:', 'Front'],
-            ].map(([label, value]) => (
-              <View key={label} style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoValue}>{value}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Stream ended */}
-      {status === 'ended' && (
-        <View style={styles.previewContent}>
-          <Text style={styles.previewIcon}>✅</Text>
-          <Text style={styles.previewTitle}>Stream Ended</Text>
-          <Text style={styles.previewSubtitle}>Thanks for going live!</Text>
-        </View>
-      )}
-
-      {/* Countdown overlay */}
-      {status === 'countdown' && (
-        <View style={styles.countdownOverlay}>
-          <Animated.Text
-            style={[
-              styles.countdownNumber,
-              { opacity: countdownOpacity, transform: [{ scale: countdownScale }] },
-            ]}
-          >
-            {countdown}
-          </Animated.Text>
-          <Text style={styles.countdownText}>Going live in...</Text>
-        </View>
-      )}
-
-      {/* Chat messages */}
-      {isChatVisible && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'position' : undefined}
-          style={styles.chatWrapper}
-        >
-          <View style={styles.chatContainer}>
-            <ScrollView
-              ref={chatScrollRef}
-              showsVerticalScrollIndicator={false}
-              onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
-            >
-              {messages.map((msg) => (
-                <View key={msg.id} style={styles.chatMessage}>
-                  <Text style={styles.chatUser}>{msg.username}</Text>
-                  <Text style={styles.chatText}>{msg.text}</Text>
-                </View>
-              ))}
-            </ScrollView>
-
-            <View style={styles.chatInputRow}>
-              <TextInput
-                style={styles.chatInput}
-                value={chatInput}
-                onChangeText={setChatInput}
-                placeholder="Say something..."
-                placeholderTextColor={Colors.textMuted}
-                onSubmitEditing={handleSendMessage}
-                returnKeyType="send"
-              />
-              <TouchableOpacity style={styles.sendBtn} onPress={handleSendMessage}>
-                <Text style={styles.sendBtnText}>Send</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      )}
-
-      {/* Bottom controls */}
-      <View style={[styles.controls, { paddingBottom: insets.bottom + Spacing.lg }]}>
-        <TouchableOpacity
-          style={[styles.goLiveBtn, isStreaming && styles.goLiveBtnStop]}
-          onPress={handleGoLive}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.goLiveIcon}>{isStreaming ? '⏹' : '⚫'}</Text>
-          <Text style={styles.goLiveText}>{isStreaming ? 'END' : 'GO LIVE'}</Text>
-        </TouchableOpacity>
+        ) : (
+          <View style={{ width: 48 }} />
+        )}
       </View>
 
-      {/* Chat toggle */}
-      <TouchableOpacity
-        style={[styles.chatToggle, { bottom: insets.bottom + 30 }, isChatVisible && styles.chatToggleActive]}
-        onPress={toggleChat}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.chatToggleIcon}>💬</Text>
-      </TouchableOpacity>
+      {isBroadcasting && engineReady ? (
+        <View style={StyleSheet.absoluteFill}>
+          <VideoView
+            canvas={{ uid: 0, sourceType: agora.VideoSourceType.VideoSourceCamera }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+      ) : null}
+
+      {status === 'idle' && (
+        <View style={styles.center}>
+          <Text style={styles.hero}>📹</Text>
+          <Text style={styles.heading}>Ready to Go Live?</Text>
+          <Text style={styles.sub}>
+            Broadcast straight from your camera. Your stream shows up in everyone's
+            Streaming Now feed the moment you go live.
+          </Text>
+        </View>
+      )}
+
+      {status === 'error' && (
+        <View style={styles.center}>
+          <Text style={styles.hero}>⚠️</Text>
+          <Text style={styles.heading}>Couldn't go live</Text>
+          <Text style={styles.sub}>{error}</Text>
+        </View>
+      )}
+
+      {isBroadcasting && (
+        <View style={[styles.overlay, { paddingBottom: insets.bottom + 120 }]}>
+          <View style={styles.linkCard}>
+            <Text style={styles.linkLabel}>
+              {status === 'connecting'
+                ? 'Starting…'
+                : `${viewers} watching · live in the BibleWay feed`}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <View style={[styles.controls, { paddingBottom: insets.bottom + Spacing.lg }]}>
+        {status === 'idle' || status === 'error' ? (
+          <TouchableOpacity style={styles.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
+            <Text style={styles.goLiveText}>GO LIVE</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.endBtn} onPress={handleEnd} activeOpacity={0.85}>
+            <Text style={styles.goLiveText}>END</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    width: 40,
-    height: 40,
-    backgroundColor: Colors.overlayDark,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-  },
-  closeBtnText: {
-    color: '#fff',
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-  },
-  liveBadgeTop: {
-    position: 'absolute',
-    top: 60,
-    right: 20,
+  container: { flex: 1, backgroundColor: '#000', paddingHorizontal: Spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
+  close: { color: '#fff', fontSize: Typography.xl, fontWeight: Typography.bold, width: 48 },
+  title: { color: '#fff', fontSize: Typography.lg, fontWeight: Typography.bold },
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: 'rgba(255,0,0,0.9)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    zIndex: 20,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-  },
-  liveBadgeText: {
-    color: '#fff',
-    fontSize: Typography.sm,
-    fontWeight: Typography.bold,
-  },
-  viewerCountBadge: {
-    position: 'absolute',
-    top: 110,
-    left: 20,
-    backgroundColor: Colors.overlayDark,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    zIndex: 20,
-  },
-  viewerCountText: {
-    color: '#fff',
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-  },
-  previewContent: {
-    flex: 1,
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    width: 48,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
   },
-  previewIcon: {
-    fontSize: 80,
-    opacity: 0.5,
-  },
-  previewTitle: {
-    fontSize: Typography['3xl'],
-    fontWeight: Typography.bold,
-    color: '#fff',
-  },
-  previewSubtitle: {
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
+  liveBadgeText: { color: '#fff', fontSize: Typography.xs, fontWeight: Typography.bold },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, zIndex: 5 },
+  hero: { fontSize: 72 },
+  heading: { color: '#fff', fontSize: Typography['2xl'], fontWeight: Typography.bold, textAlign: 'center' },
+  sub: {
+    color: 'rgba(255,255,255,0.85)',
     fontSize: Typography.base,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.lg,
   },
-  infoBox: {
-    backgroundColor: Colors.overlayMedium,
-    padding: Spacing.base,
+  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, zIndex: 8 },
+  linkCard: {
+    backgroundColor: 'rgba(0,0,0,0.65)',
     borderRadius: BorderRadius.lg,
-    width: '100%',
+    padding: Spacing.base,
     gap: Spacing.sm,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.base,
-  },
-  infoValue: {
-    color: '#fff',
-    fontSize: Typography.base,
-    fontWeight: Typography.semibold,
-  },
-  countdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 50,
-  },
-  countdownNumber: {
-    fontSize: 120,
-    fontWeight: Typography.bold,
-    color: '#fff',
-  },
-  countdownText: {
-    position: 'absolute',
-    bottom: 160,
-    fontSize: Typography.lg,
-    fontWeight: Typography.semibold,
-    color: '#fff',
-  },
-  chatWrapper: {
-    position: 'absolute',
-    bottom: 120,
-    left: 20,
-    right: 20,
-    zIndex: 30,
-  },
-  chatContainer: {
-    backgroundColor: Colors.overlayDark,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.base,
-    maxHeight: 300,
-  },
-  chatMessage: {
-    marginBottom: 12,
-  },
-  chatUser: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-    color: Colors.primary,
-    marginBottom: 2,
-  },
-  chatText: {
-    fontSize: Typography.sm,
-    color: '#fff',
-    lineHeight: Typography.sm * Typography.normal,
-  },
-  chatInputRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: Spacing.md,
-  },
-  chatInput: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    color: '#fff',
-    fontSize: Typography.base,
-  },
-  sendBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    justifyContent: 'center',
-  },
-  sendBtnText: {
-    color: '#fff',
-    fontWeight: Typography.semibold,
-    fontSize: Typography.sm,
-  },
-  controls: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingBottom: 40,
-  },
+  linkLabel: { color: 'rgba(255,255,255,0.8)', fontSize: Typography.sm, fontWeight: Typography.semibold },
+  controls: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', zIndex: 10 },
   goLiveBtn: {
-    width: 80,
-    height: 80,
     backgroundColor: Colors.primary,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 4,
     borderColor: '#fff',
-    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 8,
   },
-  goLiveBtnStop: {
+  endBtn: {
     backgroundColor: '#666',
-    shadowOpacity: 0,
-  },
-  goLiveIcon: {
-    fontSize: 28,
-  },
-  goLiveText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: Typography.bold,
-    letterSpacing: 0.5,
-  },
-  chatToggle: {
-    position: 'absolute',
-    right: 20,
-    width: 50,
-    height: 50,
-    backgroundColor: Colors.overlayDark,
-    borderWidth: 2,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 4,
     borderColor: '#fff',
-    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 20,
   },
-  chatToggleActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  chatToggleIcon: {
-    fontSize: 22,
-  },
+  goLiveText: { color: '#fff', fontSize: Typography.sm, fontWeight: Typography.bold, letterSpacing: 1 },
 });
