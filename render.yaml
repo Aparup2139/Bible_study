@@ -9,7 +9,10 @@ services:
     plan: free
     region: singapore
     rootDir: backend
-    buildCommand: npm ci && npm run build
+    # --include=dev: NODE_ENV=production makes npm ci skip devDependencies,
+    # but the build needs the repo's own TypeScript (the image's global tsc is
+    # newer and rejects our tsconfig).
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
