@@ -1,45 +1,48 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import { useDenominations } from '../hooks/useDenominations';
 import { useUpdateProfile } from '../hooks/useProfile';
 import { useAppStore } from '../store/useAppStore';
+import { useTheme } from '../theme/ThemeContext';
+import { Deep, Fonts, Radii } from '../theme/elegant';
+import { Icon } from '../components/elegant/Icons';
+import { GlassCircle, PressScale, SectionLabel, SerifTitle } from '../components/elegant/Kit';
 import type { Denomination } from '../types';
 
 // Maps the API's DenominationGroup enum to the picker's display label.
 const GROUP_LABELS: Record<string, string> = {
-  CATHOLIC: '\u{1F4D6} CATHOLIC',
-  ORTHODOX: '\u{2626}\u{FE0F} ORTHODOX',
-  PROTESTANT_MAINLINE: '\u{271D}\u{FE0F} PROTESTANT \u2013 MAINLINE',
-  PROTESTANT_EVANGELICAL: '\u{1F4E3} EVANGELICAL',
-  PENTECOSTAL: '\u{1F525} PENTECOSTAL',
-  CHARISMATIC: '\u{2728} CHARISMATIC',
-  BAPTIST: '\u{1F54A}\u{FE0F} BAPTIST',
-  ADVENTIST: '\u{1F4C5} ADVENTIST',
-  OTHER: '\u{26EA} OTHER',
+  CATHOLIC: 'Catholic',
+  ORTHODOX: 'Orthodox',
+  PROTESTANT_MAINLINE: 'Protestant – Mainline',
+  PROTESTANT_EVANGELICAL: 'Evangelical',
+  PENTECOSTAL: 'Pentecostal',
+  CHARISMATIC: 'Charismatic',
+  BAPTIST: 'Baptist',
+  ADVENTIST: 'Adventist',
+  OTHER: 'Other',
 };
 
-type DenominationOption = {
-  value: string;
-  label: string;
-  group: string;
-};
+type DenominationOption = { value: string; label: string; group: string };
 
 interface Props {
   onClose: () => void;
 }
 
+function StatTile({ value, label }: { value: string; label: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ width: '48.5%', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, paddingVertical: 13, paddingHorizontal: 10, borderRadius: Radii.sm, alignItems: 'center', gap: 3 }}>
+      <Text numberOfLines={1} style={{ fontFamily: Fonts.serif, fontSize: 19, color: c.gold }}>{value}</Text>
+      <Text style={{ fontSize: 8, color: c.ink3, textTransform: 'uppercase', letterSpacing: 1.8, fontFamily: Fonts.sans, textAlign: 'center' }}>{label}</Text>
+    </View>
+  );
+}
+
 export function DenominationScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { c } = useTheme();
   const { data: denominations = [] } = useDenominations();
   const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
@@ -53,12 +56,7 @@ export function DenominationScreen({ onClose }: Props) {
   }, [profile.denominationId]);
 
   const options: DenominationOption[] = useMemo(
-    () =>
-      denominations.map((d) => ({
-        value: d.id,
-        label: d.name,
-        group: GROUP_LABELS[d.group] ?? d.group,
-      })),
+    () => denominations.map((d) => ({ value: d.id, label: d.name, group: GROUP_LABELS[d.group] ?? d.group })),
     [denominations],
   );
   const infoMap = useMemo(
@@ -75,93 +73,85 @@ export function DenominationScreen({ onClose }: Props) {
     setIsPickerOpen(false);
     updateProfile.mutate(
       { denominationId: id },
-      {
-        onError: (err) =>
-          Alert.alert(
-            'Could not save',
-            err instanceof Error ? err.message : 'Please try again.',
-          ),
-      },
+      { onError: (err) => Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.') },
     );
   };
 
-  // Group options for the picker list
   const groups = options.reduce<Record<string, DenominationOption[]>>((acc, opt) => {
     if (!acc[opt.group]) acc[opt.group] = [];
     acc[opt.group].push(opt);
     return acc;
   }, {});
 
+  const worldwideShort = (s: string) => s.replace(/,\d{3},\d{3}$/, 'M');
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Denominations</Text>
+    <View style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top }}>
+      {/* header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 18, paddingVertical: 10 }}>
+        <GlassCircle icon="back" onPress={onClose} iconSize={16} />
+        <SerifTitle size={23}>Denominations</SerifTitle>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Intro banner */}
-        <LinearGradient
-          colors={[Colors.gradientRedStart, Colors.gradientRedEnd]}
-          style={styles.introBanner}
-        >
-          <Text style={styles.introIcon}>⛪</Text>
-          <Text style={styles.introTitle}>Explore Christian Denominations</Text>
-          <Text style={styles.introText}>
-            Discover and connect with different expressions of the Christian faith around the world
-          </Text>
-        </LinearGradient>
-
-        {/* Selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔍  Select a Denomination</Text>
-          <Text style={styles.dropdownLabel}>Choose from Christian denominations worldwide</Text>
-
-          {/* Custom picker trigger */}
-          <TouchableOpacity
-            style={styles.pickerTrigger}
-            onPress={() => setIsPickerOpen((o) => !o)}
-            activeOpacity={0.8}
-          >
-            <Text style={selectedOption ? styles.pickerValue : styles.pickerPlaceholder}>
-              {selectedOption ? selectedOption.label : '-- Select a Denomination --'}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 22, paddingBottom: insets.bottom + 44 }} showsVerticalScrollIndicator={false}>
+        {/* intro banner */}
+        <View style={{ marginHorizontal: 20, marginTop: 8, borderRadius: Radii.xxl + 2, overflow: 'hidden', borderWidth: 1, borderColor: c.hairlineSoft }}>
+          <LinearGradient colors={[...Deep.bannerStops]} style={{ paddingVertical: 28, paddingHorizontal: 24, alignItems: 'center', gap: 10 }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(232,203,143,0.4)', backgroundColor: 'rgba(201,162,87,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+              <Icon name="church" size={25} color={Deep.goldOnDeep} strokeWidth={1.4} />
+            </View>
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 23, color: Deep.onDeep, textAlign: 'center', lineHeight: 29 }}>
+              Explore Christian Denominations
             </Text>
-            <Text style={styles.pickerChevron}>{isPickerOpen ? '▲' : '▼'}</Text>
-          </TouchableOpacity>
+            <Text style={{ fontSize: 12, fontFamily: Fonts.sansLight, color: Deep.onDeepSoft, textAlign: 'center', lineHeight: 20, letterSpacing: 0.3 }}>
+              Discover and connect with different expressions of the Christian faith around the world.
+            </Text>
+          </LinearGradient>
+        </View>
 
-          {/* Expandable picker list */}
+        {/* selector */}
+        <View style={{ paddingHorizontal: 20, gap: 10 }}>
+          <SectionLabel>Select a denomination</SectionLabel>
+          <PressScale onPress={() => setIsPickerOpen((o) => !o)} to={0.99}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, paddingVertical: 15, paddingHorizontal: 17 }}>
+              <Text style={{ color: selectedOption ? c.ink : c.ink3, fontSize: 13.5, fontFamily: Fonts.sans, flex: 1, letterSpacing: 0.2 }}>
+                {selectedOption ? selectedOption.label : 'Select a denomination'}
+              </Text>
+              <View style={{ transform: [{ rotate: isPickerOpen ? '180deg' : '0deg' }] }}>
+                <Icon name="chevronDown" size={14} color={c.gold} strokeWidth={1.7} />
+              </View>
+            </View>
+          </PressScale>
+
           {isPickerOpen && (
-            <View style={styles.pickerList}>
+            <View style={{ backgroundColor: c.surface2, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, overflow: 'hidden' }}>
               <ScrollView style={{ maxHeight: 350 }} nestedScrollEnabled>
                 {Object.entries(groups).map(([groupLabel, opts]) => (
                   <View key={groupLabel}>
-                    <Text style={styles.optGroupLabel}>{groupLabel}</Text>
-                    {opts.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[
-                          styles.optItem,
-                          selectedId === opt.value && styles.optItemSelected,
-                        ]}
-                        onPress={() => handleSelect(opt.value)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.optItemText,
-                            selectedId === opt.value && styles.optItemTextSelected,
-                          ]}
+                    <Text style={{ paddingHorizontal: 17, paddingTop: 10, paddingBottom: 5, fontSize: 8.5, fontFamily: Fonts.sansSemi, color: c.gold, letterSpacing: 2.4, textTransform: 'uppercase' }}>
+                      {groupLabel}
+                    </Text>
+                    {opts.map((opt) => {
+                      const sel = selectedId === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          onPress={() => handleSelect(opt.value)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                            paddingHorizontal: 17, paddingVertical: 13,
+                            borderBottomWidth: 1, borderBottomColor: c.hairlineSoft,
+                            backgroundColor: sel ? c.goldSoft : 'transparent',
+                          }}
                         >
-                          {opt.label}
-                        </Text>
-                        {selectedId === opt.value && (
-                          <Text style={styles.optCheck}>✓</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                          <Text style={{ fontSize: 13.5, color: sel ? c.gold : c.ink, flex: 1, fontFamily: sel ? Fonts.sansMed : Fonts.sansLight, letterSpacing: 0.2 }}>
+                            {opt.label}
+                          </Text>
+                          {sel && <Icon name="check" size={14} color={c.gold} strokeWidth={1.8} />}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 ))}
               </ScrollView>
@@ -169,234 +159,31 @@ export function DenominationScreen({ onClose }: Props) {
           )}
         </View>
 
-        {/* Info panel */}
+        {/* info panel */}
         {info && (
-          <View style={styles.infoPanel}>
-            <Text style={styles.infoPanelTitle}>⛪  {info.name}</Text>
-            <Text style={styles.infoPanelText}>{info.description}</Text>
+          <View style={{ marginHorizontal: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.xxl, paddingVertical: 22, paddingHorizontal: 20, gap: 14 }}>
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 22, color: c.ink, letterSpacing: 0.3 }}>{info.name}</Text>
+            <Text style={{ fontSize: 12.5, color: c.ink2, lineHeight: 22, fontFamily: Fonts.sansLight, letterSpacing: 0.2 }}>{info.description}</Text>
 
-            <View style={styles.statsGrid}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{info.globalFollowers}</Text>
-                <Text style={styles.statLabel}>GLOBAL FOLLOWERS</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{info.foundedYear}</Text>
-                <Text style={styles.statLabel}>FOUNDED</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{info.bibleVersion.split('/')[0].trim()}</Text>
-                <Text style={styles.statLabel}>BIBLE VERSION</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>{info.worldwideMembers.replace(/,\d{3},\d{3}$/, 'M')}</Text>
-                <Text style={styles.statLabel}>WORLDWIDE</Text>
-              </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 2 }}>
+              <StatTile value={info.globalFollowers} label="Global Followers" />
+              <StatTile value={`${info.foundedYear}`} label="Founded" />
+              <StatTile value={info.bibleVersion.split('/')[0].trim()} label="Bible Version" />
+              <StatTile value={worldwideShort(info.worldwideMembers)} label="Worldwide" />
             </View>
 
-            <TouchableOpacity
-              style={styles.joinBtn}
-              onPress={() => Alert.alert('Joined!', `You've joined the ${info.name} community.`)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.joinBtnText}>⛪  Join this Community</Text>
-            </TouchableOpacity>
+            <PressScale onPress={() => Alert.alert('Joined!', `You've joined the ${info.name} community.`)} to={0.97}>
+              <LinearGradient
+                colors={[c.goldBright, c.gold]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ paddingVertical: 14, borderRadius: Radii.pill, alignItems: 'center' }}
+              >
+                <Text style={{ color: c.onGold, fontSize: 12.5, fontFamily: Fonts.sansSemi, letterSpacing: 1 }}>Join this Community</Text>
+              </LinearGradient>
+            </PressScale>
           </View>
         )}
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.base,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  backArrow: {
-    color: Colors.textPrimary,
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-  },
-  headerTitle: {
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    gap: Spacing.lg,
-  },
-  introBanner: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  introIcon: {
-    fontSize: 48,
-    marginBottom: Spacing.sm,
-  },
-  introTitle: {
-    fontSize: Typography['3xl'],
-    fontWeight: Typography.bold,
-    color: '#fff',
-    textAlign: 'center',
-  },
-  introText: {
-    fontSize: Typography.base,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    lineHeight: Typography.base * 1.5,
-  },
-  section: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-  },
-  dropdownLabel: {
-    fontSize: Typography.base,
-    color: Colors.textSecondary,
-    fontWeight: Typography.semibold,
-  },
-  pickerTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.base,
-  },
-  pickerValue: {
-    color: Colors.textPrimary,
-    fontSize: Typography.md,
-    flex: 1,
-  },
-  pickerPlaceholder: {
-    color: Colors.textMuted,
-    fontSize: Typography.md,
-    flex: 1,
-  },
-  pickerChevron: {
-    color: Colors.textMuted,
-    fontSize: Typography.sm,
-  },
-  pickerList: {
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-  optGroupLabel: {
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
-    fontSize: Typography.xs,
-    fontWeight: Typography.bold,
-    color: Colors.textMuted,
-    backgroundColor: Colors.surface,
-    letterSpacing: 0.5,
-  },
-  optItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  optItemSelected: {
-    backgroundColor: 'rgba(255,0,0,0.1)',
-  },
-  optItemText: {
-    fontSize: Typography.base,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  optItemTextSelected: {
-    color: Colors.primary,
-    fontWeight: Typography.semibold,
-  },
-  optCheck: {
-    color: Colors.primary,
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
-  infoPanel: {
-    marginHorizontal: Spacing.lg,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  infoPanelTitle: {
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-  },
-  infoPanelText: {
-    fontSize: Typography.base,
-    color: Colors.textSecondary,
-    lineHeight: Typography.base * 1.6,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.base,
-    marginTop: Spacing.sm,
-  },
-  statBox: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: Colors.background,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-    color: Colors.primary,
-  },
-  statLabel: {
-    fontSize: Typography.xs,
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-  joinBtn: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 15,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-  },
-  joinBtnText: {
-    color: '#fff',
-    fontSize: Typography.md,
-    fontWeight: Typography.semibold,
-  },
-});

@@ -1,17 +1,13 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Dimensions,
-} from 'react-native';
+import { ActivityIndicator, Dimensions, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { useUploadVideo, waitForPlayable } from '../hooks/useUploadVideo';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
+import { Fonts, Radii } from '../theme/elegant';
+import { Icon } from '../components/elegant/Icons';
+import { GlassCircle, GoldPill, PressScale, SerifTitle } from '../components/elegant/Kit';
 
 interface Props {
   onClose: () => void;
@@ -20,24 +16,21 @@ interface Props {
 type Phase = 'idle' | 'uploading' | 'processing' | 'ready' | 'error';
 
 const { width } = Dimensions.get('window');
-const PLAYER_HEIGHT = width * (9 / 16);
+const PLAYER_HEIGHT = (width - 52) * (9 / 16);
 
 /** Map a picked file to a Cloudflare-friendly video MIME type. */
 function resolveVideoMime(mimeType: string | undefined, name: string): string {
   if (mimeType && mimeType.startsWith('video/')) return mimeType;
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
-    mp4: 'video/mp4',
-    mov: 'video/quicktime',
-    m4v: 'video/x-m4v',
-    webm: 'video/webm',
-    mkv: 'video/x-matroska',
+    mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', webm: 'video/webm', mkv: 'video/x-matroska',
   };
   return map[ext] ?? 'video/mp4';
 }
 
 export function UploadVideoScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { c } = useTheme();
   const upload = useUploadVideo();
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -47,11 +40,7 @@ export function UploadVideoScreen({ onClose }: Props) {
 
   const pickAndUpload = useCallback(async () => {
     setError('');
-    const picked = await DocumentPicker.getDocumentAsync({
-      type: 'video/*',
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
+    const picked = await DocumentPicker.getDocumentAsync({ type: 'video/*', copyToCacheDirectory: true, multiple: false });
     if (picked.canceled || !picked.assets?.length) return;
 
     const asset = picked.assets[0];
@@ -61,11 +50,7 @@ export function UploadVideoScreen({ onClose }: Props) {
 
     try {
       setPhase('uploading');
-      const { playbackUrl: url } = await upload.mutateAsync({
-        uri: asset.uri,
-        name,
-        contentType,
-      });
+      const { playbackUrl: url } = await upload.mutateAsync({ uri: asset.uri, name, contentType });
 
       // Cloudflare needs a few seconds to transcode before HLS is playable.
       setPhase('processing');
@@ -90,73 +75,73 @@ export function UploadVideoScreen({ onClose }: Props) {
     setError('');
   }, []);
 
+  const emblem = (
+    <View style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name="film" size={30} color={c.gold} strokeWidth={1.4} />
+    </View>
+  );
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.base }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} hitSlop={12}>
-          <Text style={styles.close}>✕</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Upload Video</Text>
-        <View style={{ width: 24 }} />
+    <View style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top + 12 }}>
+      {/* header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18 }}>
+        <GlassCircle icon="x" onPress={onClose} />
+        <SerifTitle size={20}>Upload Video</SerifTitle>
+        <View style={{ width: 38 }} />
       </View>
 
-      <View style={styles.body}>
+      <View style={{ flex: 1, paddingHorizontal: 26 }}>
         {phase === 'idle' && (
           <View style={styles.center}>
-            <Text style={styles.hero}>🎬</Text>
-            <Text style={styles.heading}>Share a video</Text>
-            <Text style={styles.sub}>
+            {emblem}
+            <SerifTitle size={26}>Share a video</SerifTitle>
+            <Text style={{ color: c.ink2, fontSize: 12.5, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 21, letterSpacing: 0.2 }}>
               Pick a video from your device. It uploads to Cloudflare Stream and plays back here.
             </Text>
-            <TouchableOpacity style={styles.primaryBtn} onPress={pickAndUpload} activeOpacity={0.85}>
-              <Text style={styles.primaryBtnText}>Choose a video</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 8 }}>
+              <GoldPill label="Choose a video" onPress={pickAndUpload} paddingH={30} paddingV={13} fontSize={12.5} />
+            </View>
           </View>
         )}
 
         {(phase === 'uploading' || phase === 'processing') && (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.heading}>
-              {phase === 'uploading' ? 'Uploading…' : 'Processing…'}
-            </Text>
-            <Text style={styles.sub} numberOfLines={1}>
-              {fileName}
-            </Text>
-            <Text style={styles.note}>
-              {phase === 'uploading'
-                ? 'Sending your video to Cloudflare.'
-                : 'Cloudflare is transcoding to HLS — this can take a few seconds.'}
+            <ActivityIndicator size="large" color={c.gold} />
+            <SerifTitle size={24}>{phase === 'uploading' ? 'Uploading…' : 'Processing…'}</SerifTitle>
+            <Text numberOfLines={1} style={{ color: c.ink2, fontSize: 12, fontFamily: Fonts.sansLight, letterSpacing: 0.5 }}>{fileName}</Text>
+            <Text style={{ color: c.ink3, fontSize: 10.5, fontFamily: Fonts.sansLight, textAlign: 'center', letterSpacing: 0.4 }}>
+              {phase === 'uploading' ? 'Sending your video to Cloudflare.' : 'Cloudflare is transcoding to HLS — this can take a few seconds.'}
             </Text>
           </View>
         )}
 
         {phase === 'ready' && playbackUrl && (
           <View style={styles.center}>
-            <Text style={styles.heading}>Now playing</Text>
+            <SerifTitle size={24}>Now playing</SerifTitle>
             <Video
               source={{ uri: playbackUrl }}
-              style={styles.player}
+              style={{ width: '100%', height: PLAYER_HEIGHT, backgroundColor: '#0A0806', borderRadius: Radii.xl, overflow: 'hidden' }}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay
             />
-            <Text style={styles.note} numberOfLines={1}>{fileName}</Text>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={reset} activeOpacity={0.85}>
-              <Text style={styles.secondaryBtnText}>Upload another</Text>
-            </TouchableOpacity>
+            <Text numberOfLines={1} style={{ color: c.ink3, fontSize: 11, fontFamily: Fonts.sansLight, letterSpacing: 0.5 }}>{fileName}</Text>
+            <PressScale onPress={reset} to={0.96}>
+              <View style={{ borderWidth: 1, borderColor: c.hairline, paddingHorizontal: 26, paddingVertical: 12, borderRadius: Radii.pill, marginTop: 8 }}>
+                <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>Upload another</Text>
+              </View>
+            </PressScale>
           </View>
         )}
 
         {phase === 'error' && (
           <View style={styles.center}>
-            <Text style={styles.hero}>⚠️</Text>
-            <Text style={styles.heading}>Something went wrong</Text>
-            <Text style={styles.sub}>{error}</Text>
-            <TouchableOpacity style={styles.primaryBtn} onPress={reset} activeOpacity={0.85}>
-              <Text style={styles.primaryBtnText}>Try again</Text>
-            </TouchableOpacity>
+            {emblem}
+            <SerifTitle size={24}>Something went wrong</SerifTitle>
+            <Text style={{ color: c.ink2, fontSize: 12.5, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 21 }}>{error}</Text>
+            <View style={{ marginTop: 8 }}>
+              <GoldPill label="Try again" onPress={reset} paddingH={26} paddingV={12} fontSize={12} />
+            </View>
           </View>
         )}
       </View>
@@ -164,88 +149,6 @@ export function UploadVideoScreen({ onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  close: {
-    color: Colors.textPrimary,
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-    width: 24,
-  },
-  title: {
-    color: Colors.textPrimary,
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-  body: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.md,
-  },
-  hero: {
-    fontSize: 72,
-  },
-  heading: {
-    color: Colors.textPrimary,
-    fontSize: Typography['2xl'],
-    fontWeight: Typography.bold,
-  },
-  sub: {
-    color: Colors.textSecondary,
-    fontSize: Typography.base,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  note: {
-    color: Colors.textMuted,
-    fontSize: Typography.sm,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  primaryBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginTop: Spacing.md,
-  },
-  primaryBtnText: {
-    color: '#fff',
-    fontSize: Typography.base,
-    fontWeight: Typography.bold,
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginTop: Spacing.md,
-  },
-  secondaryBtnText: {
-    color: Colors.textPrimary,
-    fontSize: Typography.base,
-    fontWeight: Typography.semibold,
-  },
-  player: {
-    width: '100%',
-    height: PLAYER_HEIGHT,
-    backgroundColor: '#000',
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-  },
-});
+const styles = {
+  center: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 14 },
+};

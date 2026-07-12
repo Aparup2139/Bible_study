@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import { useAppStore } from '../store/useAppStore';
 import { useGoLive, useEndStream, useRtcToken, useStreamDetail } from '../hooks/useLiveStreams';
 import { getAgora, getEngine, destroyEngine, isAgoraAvailable } from '../services/agoraEngine';
+import { useTheme } from '../theme/ThemeContext';
+import { Fonts, Radii } from '../theme/elegant';
+import { Icon } from '../components/elegant/Icons';
+import { GlassCircle, LiveBadge, PressScale } from '../components/elegant/Kit';
 
 interface Props {
   onClose: () => void;
@@ -14,10 +18,7 @@ interface Props {
 /** Host uid inside every Agora channel (matches the backend's HOST_UID). */
 const HOST_UID = 1;
 
-/**
- * Agora does NOT request runtime permissions itself — without these it silently
- * captures black frames instead of failing.
- */
+/** Agora does NOT request runtime permissions itself. */
 async function ensureMediaPermissions(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
   const res = await PermissionsAndroid.requestMultiple([
@@ -27,14 +28,24 @@ async function ensureMediaPermissions(): Promise<boolean> {
   return Object.values(res).every((v) => v === PermissionsAndroid.RESULTS.GRANTED);
 }
 
-/**
- * Host live streaming over Agora. GO LIVE registers the stream on the backend
- * (so it appears in the Home feed), then broadcasts the phone camera into the
- * stream's Agora channel. Requires a dev build (react-native-agora is native);
- * under Expo Go it shows a build prompt.
- */
+function CenterMessage({ icon, heading, sub }: { icon: 'video' | 'x'; heading: string; sub: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={styles.center}>
+      <View style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={32} color={c.gold} strokeWidth={1.4} />
+      </View>
+      <Text style={{ fontFamily: Fonts.serif, fontSize: 27, color: c.ink, textAlign: 'center' }}>{heading}</Text>
+      <Text style={{ color: c.ink2, fontSize: 13, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 22, paddingHorizontal: 34, letterSpacing: 0.2 }}>
+        {sub}
+      </Text>
+    </View>
+  );
+}
+
 export function LiveStreamScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { c } = useTheme();
   const profile = useAppStore((s) => s.profile);
   const goLive = useGoLive();
   const endStream = useEndStream();
@@ -43,17 +54,12 @@ export function LiveStreamScreen({ onClose }: Props) {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'live' | 'error'>('idle');
   const [error, setError] = useState('');
   const [streamId, setStreamId] = useState<string | null>(null);
-  // The native video view attaches itself to the engine exactly once, on mount
-  // (its callApi prop → setupLocalVideo, silently dropped if the engine doesn't
-  // exist yet). Mount it only after getEngine() has initialized the engine.
   const [engineReady, setEngineReady] = useState(false);
 
   const engineRef = useRef<IRtcEngine | null>(null);
   const handlerRef = useRef<IRtcEngineEventHandler | null>(null);
   const streamIdRef = useRef<string | null>(null);
 
-  // Viewer count comes from the backend (Agora doesn't report audience joins
-  // to broadcasters in the live-broadcast profile).
   const { data: detail } = useStreamDetail(streamId, status === 'live');
   const viewers = detail?.viewerCount ?? 0;
 
@@ -81,7 +87,6 @@ export function LiveStreamScreen({ onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Never strand a live DB row if the modal is dismissed mid-broadcast.
   useEffect(() => {
     return () => {
       if (streamIdRef.current) stopBroadcast(true);
@@ -128,10 +133,7 @@ export function LiveStreamScreen({ onClose }: Props) {
       handlerRef.current = handler;
       engine.registerEventHandler(handler);
       engine.enableVideo();
-      engine.setVideoEncoderConfiguration({
-        dimensions: { width: 720, height: 1280 },
-        frameRate: 24,
-      });
+      engine.setVideoEncoderConfiguration({ dimensions: { width: 720, height: 1280 }, frameRate: 24 });
       engine.startPreview();
       engine.joinChannel(res.token, res.channel, HOST_UID, {
         clientRoleType: agora.ClientRoleType.ClientRoleBroadcaster,
@@ -150,103 +152,85 @@ export function LiveStreamScreen({ onClose }: Props) {
     onClose();
   }, [stopBroadcast, onClose]);
 
+  const header = (showLive: boolean) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, zIndex: 10 }}>
+      <GlassCircle icon="x" onPress={status === 'live' || status === 'connecting' ? handleEnd : onClose} />
+      <Text style={{ fontFamily: Fonts.serif, fontSize: 20, color: c.ink, letterSpacing: 0.4 }}>Go Live</Text>
+      {showLive ? <LiveBadge /> : <View style={{ width: 38 }} />}
+    </View>
+  );
+
   // ── Expo Go (or Agora unavailable): explain, don't crash ──
   if (!agoraReady) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + Spacing.base }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={styles.close}>✕</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Go Live</Text>
-          <View style={{ width: 48 }} />
-        </View>
-        <View style={styles.center}>
-          <Text style={styles.hero}>📹</Text>
-          <Text style={styles.heading}>Live needs the dev build</Text>
-          <Text style={styles.sub}>
-            Camera live streaming uses Agora, a native module that isn't in Expo Go. Install
-            the custom dev build (eas build --profile development) to broadcast. Everything
-            else in the app works here in Expo Go.
-          </Text>
-        </View>
+      <View style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top + 12 }}>
+        {header(false)}
+        <CenterMessage
+          icon="video"
+          heading="Live needs the dev build"
+          sub="Camera live streaming uses Agora, a native module that isn't in Expo Go. Install the custom dev build (eas build --profile development) to broadcast. Everything else in the app works here in Expo Go."
+        />
       </View>
     );
   }
 
   const agora = getAgora()!;
-  // TextureView on Android: this screen lives inside a RN Modal, and a
-  // SurfaceView composites behind the Modal's window — video renders black.
-  // iOS keeps RtcSurfaceView (a plain UIView there; RtcTextureView is Android-only).
+  // TextureView on Android: this screen lives inside a RN Modal.
   const VideoView = Platform.OS === 'android' ? agora.RtcTextureView : agora.RtcSurfaceView;
   const isBroadcasting = status === 'live' || status === 'connecting';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.base }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={isBroadcasting ? handleEnd : onClose} hitSlop={12}>
-          <Text style={styles.close}>✕</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Go Live</Text>
-        {status === 'live' ? (
-          <View style={styles.liveBadge}>
-            <View style={styles.dot} />
-            <Text style={styles.liveBadgeText}>LIVE</Text>
-          </View>
-        ) : (
-          <View style={{ width: 48 }} />
-        )}
-      </View>
+    <View style={{ flex: 1, backgroundColor: isBroadcasting ? '#0A0806' : c.sheet, paddingTop: insets.top + 12 }}>
+      {header(status === 'live')}
 
       {isBroadcasting && engineReady ? (
         <View style={StyleSheet.absoluteFill}>
-          <VideoView
-            canvas={{ uid: 0, sourceType: agora.VideoSourceType.VideoSourceCamera }}
-            style={StyleSheet.absoluteFill}
-          />
+          <VideoView canvas={{ uid: 0, sourceType: agora.VideoSourceType.VideoSourceCamera }} style={StyleSheet.absoluteFill} />
         </View>
       ) : null}
 
       {status === 'idle' && (
-        <View style={styles.center}>
-          <Text style={styles.hero}>📹</Text>
-          <Text style={styles.heading}>Ready to Go Live?</Text>
-          <Text style={styles.sub}>
-            Broadcast straight from your camera. Your stream shows up in everyone's
-            Streaming Now feed the moment you go live.
-          </Text>
-        </View>
+        <CenterMessage
+          icon="video"
+          heading="Ready to Go Live?"
+          sub="Broadcast straight from your camera. Your stream appears in everyone's Streaming Now feed the moment you go live."
+        />
       )}
 
       {status === 'error' && (
-        <View style={styles.center}>
-          <Text style={styles.hero}>⚠️</Text>
-          <Text style={styles.heading}>Couldn't go live</Text>
-          <Text style={styles.sub}>{error}</Text>
-        </View>
+        <CenterMessage icon="x" heading="Couldn't go live" sub={error} />
       )}
 
       {isBroadcasting && (
-        <View style={[styles.overlay, { paddingBottom: insets.bottom + 120 }]}>
-          <View style={styles.linkCard}>
-            <Text style={styles.linkLabel}>
-              {status === 'connecting'
-                ? 'Starting…'
-                : `${viewers} watching · live in the BibleWay feed`}
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 150, paddingHorizontal: 22, zIndex: 8 }}>
+          <View style={{ backgroundColor: 'rgba(12,9,6,0.62)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.22)', borderRadius: Radii.md, paddingVertical: 14, paddingHorizontal: 16 }}>
+            <Text style={{ color: '#EEDFBE', fontSize: 12, fontFamily: Fonts.sans, letterSpacing: 0.4 }}>
+              {status === 'connecting' ? 'Starting…' : `${viewers} watching · live in the BibleWay feed`}
             </Text>
           </View>
         </View>
       )}
 
-      <View style={[styles.controls, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      {/* GO LIVE / END */}
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', paddingBottom: insets.bottom + 24, zIndex: 10 }}>
         {status === 'idle' || status === 'error' ? (
-          <TouchableOpacity style={styles.goLiveBtn} onPress={handleGoLive} activeOpacity={0.85}>
-            <Text style={styles.goLiveText}>GO LIVE</Text>
-          </TouchableOpacity>
+          <PressScale onPress={handleGoLive} to={0.92}>
+            <View style={{ shadowColor: c.gold, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } }}>
+              <LinearGradient
+                colors={[c.goldBright, c.gold]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', borderWidth: 6, borderColor: c.goldSoft }}
+              >
+                <Text style={{ color: c.onGold, fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>GO LIVE</Text>
+              </LinearGradient>
+            </View>
+          </PressScale>
         ) : (
-          <TouchableOpacity style={styles.endBtn} onPress={handleEnd} activeOpacity={0.85}>
-            <Text style={styles.goLiveText}>END</Text>
-          </TouchableOpacity>
+          <PressScale onPress={handleEnd} to={0.92}>
+            <View style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(14,11,7,0.6)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.4)' }}>
+              <Text style={{ color: '#EEDFBE', fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>END</Text>
+            </View>
+          </PressScale>
         )}
       </View>
     </View>
@@ -254,60 +238,5 @@ export function LiveStreamScreen({ onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', paddingHorizontal: Spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 },
-  close: { color: '#fff', fontSize: Typography.xl, fontWeight: Typography.bold, width: 48 },
-  title: { color: '#fff', fontSize: Typography.lg, fontWeight: Typography.bold },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,0,0,0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    width: 48,
-    justifyContent: 'center',
-  },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff' },
-  liveBadgeText: { color: '#fff', fontSize: Typography.xs, fontWeight: Typography.bold },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, zIndex: 5 },
-  hero: { fontSize: 72 },
-  heading: { color: '#fff', fontSize: Typography['2xl'], fontWeight: Typography.bold, textAlign: 'center' },
-  sub: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: Typography.base,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: Spacing.lg, zIndex: 8 },
-  linkCard: {
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.base,
-    gap: Spacing.sm,
-  },
-  linkLabel: { color: 'rgba(255,255,255,0.8)', fontSize: Typography.sm, fontWeight: Typography.semibold },
-  controls: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', zIndex: 10 },
-  goLiveBtn: {
-    backgroundColor: Colors.primary,
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 4,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  endBtn: {
-    backgroundColor: '#666',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 4,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goLiveText: { color: '#fff', fontSize: Typography.sm, fontWeight: Typography.bold, letterSpacing: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 15, zIndex: 5 },
 });

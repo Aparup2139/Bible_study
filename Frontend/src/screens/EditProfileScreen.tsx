@@ -1,25 +1,19 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  Animated,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  Linking,
+  Alert, Animated, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView,
+  Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useAppStore } from '../store/useAppStore';
-import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import { useUpdateProfile } from '../hooks/useProfile';
 import { signOut, deleteAccount } from '../services/session';
 import { LEGAL_DOCS, type LegalDocKey } from '../content/legal';
+import { useTheme } from '../theme/ThemeContext';
+import { Fonts, Radii } from '../theme/elegant';
+import { Icon } from '../components/elegant/Icons';
+import { GlassCircle, PressScale, SerifTitle } from '../components/elegant/Kit';
 
 const SUPPORT_EMAIL = 'aparupghosh85@gmail.com';
 
@@ -33,18 +27,37 @@ const TABS: { key: ProfileTab; label: string }[] = [
 
 const BIO_MAX = 160;
 
+/** Hoisted so re-renders don't remount the TextInput (which would dismiss the keyboard). */
+function SocialField({ label, value, setter, placeholder }: { label: string; value: string; setter: (t: string) => void; placeholder: string }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ fontSize: 9.5, fontFamily: Fonts.sansSemi, color: c.ink3, letterSpacing: 2.2, textTransform: 'uppercase' }}>{label}</Text>
+      <TextInput
+        style={{ height: 48, paddingHorizontal: 16, backgroundColor: c.input, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.sm, color: c.ink, fontSize: 14, fontFamily: Fonts.sansLight }}
+        value={value}
+        onChangeText={setter}
+        placeholder={placeholder}
+        placeholderTextColor={c.ink3}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+    </View>
+  );
+}
+
 interface Props {
   onClose: () => void;
 }
 
 export function EditProfileScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { profile, setProfile } = useAppStore();
+  const { c } = useTheme();
+  const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
 
   const handleSignOut = async () => {
-    // The auth gate swaps to the sign-in screen automatically once the
-    // session clears (Supabase onAuthStateChange).
+    // The auth gate swaps to the sign-in screen automatically once the session clears.
     await signOut();
   };
 
@@ -64,10 +77,7 @@ export function EditProfileScreen({ onClose }: Props) {
             setDeleting(true);
             const res = await deleteAccount();
             setDeleting(false);
-            if (!res.ok) {
-              Alert.alert('Could not delete account', res.error ?? 'Please try again.');
-            }
-            // On success the auth gate swaps to sign-in automatically.
+            if (!res.ok) Alert.alert('Could not delete account', res.error ?? 'Please try again.');
           },
         },
       ],
@@ -98,7 +108,7 @@ export function EditProfileScreen({ onClose }: Props) {
         Animated.timing(successOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
         Animated.timing(successTranslateY, { toValue: -20, duration: 300, useNativeDriver: true }),
       ]).start();
-    }, 2500);
+    }, 2400);
   }, [successOpacity, successTranslateY]);
 
   const handleSave = useCallback(() => {
@@ -106,189 +116,133 @@ export function EditProfileScreen({ onClose }: Props) {
       Alert.alert('Validation', 'Display name cannot be empty.');
       return;
     }
-    // Send the handle WITHOUT a leading '@' (the API stores/validates it bare).
     updateProfile.mutate(
-      {
-        displayName: displayName.trim(),
-        handle: handle.trim().replace(/^@/, ''),
-        bio: bio.trim(),
-      },
+      { displayName: displayName.trim(), handle: handle.trim().replace(/^@/, ''), bio: bio.trim() },
       {
         onSuccess: () => showSuccess(),
-        onError: (err) =>
-          Alert.alert(
-            'Could not save',
-            err instanceof Error ? err.message : 'Please try again.',
-          ),
+        onError: (err) => Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.'),
       },
     );
   }, [displayName, handle, bio, updateProfile, showSuccess]);
 
   const bioRemaining = BIO_MAX - bio.length;
 
+  const fieldLabel = { fontSize: 9.5, fontFamily: Fonts.sansSemi, color: c.ink3, letterSpacing: 2.2, textTransform: 'uppercase' as const };
+  const input = {
+    height: 48, paddingHorizontal: 16,
+    backgroundColor: c.input, borderWidth: 1, borderColor: c.hairlineSoft,
+    borderRadius: Radii.sm, color: c.ink, fontSize: 14, fontFamily: Fonts.sansLight,
+  } as const;
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'info':
         return (
-          <View style={styles.formContent}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Display Name</Text>
-              <TextInput
-                style={styles.input}
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="Your display name"
-                placeholderTextColor={Colors.textMuted}
-                maxLength={50}
-              />
+          <View style={{ gap: 20 }}>
+            <View style={{ gap: 8 }}>
+              <Text style={fieldLabel}>Display Name</Text>
+              <TextInput style={input} value={displayName} onChangeText={setDisplayName} placeholder="Your display name" placeholderTextColor={c.ink3} maxLength={50} />
             </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Username / Handle</Text>
-              <View style={styles.handleRow}>
-                <View style={styles.handlePrefix}>
-                  <Text style={styles.handlePrefixText}>@</Text>
-                </View>
+            <View style={{ gap: 8 }}>
+              <Text style={fieldLabel}>Username</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.input, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.sm, height: 48, paddingHorizontal: 16, gap: 2 }}>
+                <Text style={{ color: c.gold, fontSize: 14, fontFamily: Fonts.sansMed }}>@</Text>
                 <TextInput
-                  style={[styles.input, styles.handleInput]}
+                  style={{ flex: 1, color: c.ink, fontSize: 14, fontFamily: Fonts.sansLight, padding: 0 }}
                   value={handle}
                   onChangeText={setHandle}
                   placeholder="yourhandle"
-                  placeholderTextColor={Colors.textMuted}
+                  placeholderTextColor={c.ink3}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={30}
                 />
               </View>
             </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Bio</Text>
+            <View style={{ gap: 8 }}>
+              <Text style={fieldLabel}>Bio</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[input, { height: undefined, minHeight: 96, paddingVertical: 13, textAlignVertical: 'top', lineHeight: 21 }]}
                 value={bio}
                 onChangeText={(t) => { if (t.length <= BIO_MAX) setBio(t); }}
-                placeholder="Tell people about yourself..."
-                placeholderTextColor={Colors.textMuted}
+                placeholder="Tell people about yourself…"
+                placeholderTextColor={c.ink3}
                 multiline
                 numberOfLines={4}
-                textAlignVertical="top"
               />
-              <Text style={[styles.charCounter, bioRemaining < 20 && styles.charCounterWarn]}>
+              <Text style={{ textAlign: 'right', color: bioRemaining < 20 ? c.live : c.ink3, fontSize: 10.5, fontFamily: Fonts.sansLight, letterSpacing: 0.4 }}>
                 {bioRemaining} characters remaining
               </Text>
             </View>
-
-            <View style={styles.actionsSection}>
-              <TouchableOpacity
-                style={styles.uploadPhotoBtn}
-                onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.uploadPhotoBtnText}>📷  Upload Profile Photo</Text>
-              </TouchableOpacity>
-            </View>
+            <PressScale onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} to={0.98}>
+              <View style={{ borderWidth: 1, borderColor: c.hairline, paddingVertical: 13, borderRadius: Radii.pill, alignItems: 'center' }}>
+                <Text style={{ color: c.gold, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>Upload Profile Photo</Text>
+              </View>
+            </PressScale>
+            <PressScale onPress={() => void handleSignOut()} to={0.98}>
+              <View style={{ borderWidth: 1, borderColor: 'rgba(224,106,80,0.35)', paddingVertical: 13, borderRadius: Radii.pill, alignItems: 'center' }}>
+                <Text style={{ color: c.live, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>Sign Out</Text>
+              </View>
+            </PressScale>
           </View>
         );
 
       case 'social':
         return (
-          <View style={styles.formContent}>
-            {[
-              { label: '🌐  Website', value: website, setter: setWebsite, placeholder: 'https://yourwebsite.com' },
-              { label: '▶️  YouTube', value: youtube, setter: setYoutube, placeholder: 'youtube.com/@channel' },
-              { label: '🐦  Twitter / X', value: twitter, setter: setTwitter, placeholder: '@yourhandle' },
-              { label: '📸  Instagram', value: instagram, setter: setInstagram, placeholder: '@yourhandle' },
-            ].map((field) => (
-              <View key={field.label} style={styles.formGroup}>
-                <Text style={styles.label}>{field.label}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={field.value}
-                  onChangeText={field.setter}
-                  placeholder={field.placeholder}
-                  placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                />
-              </View>
-            ))}
+          <View style={{ gap: 20 }}>
+            <SocialField label="Website" value={website} setter={setWebsite} placeholder="https://yourwebsite.com" />
+            <SocialField label="YouTube" value={youtube} setter={setYoutube} placeholder="youtube.com/@channel" />
+            <SocialField label="Twitter / X" value={twitter} setter={setTwitter} placeholder="@yourhandle" />
+            <SocialField label="Instagram" value={instagram} setter={setInstagram} placeholder="@yourhandle" />
           </View>
         );
 
       case 'preferences': {
-        const rows: {
-          icon: string;
-          label: string;
-          onPress: () => void;
-          danger?: boolean;
-        }[] = [
+        const rows: { label: string; onPress: () => void; danger?: boolean }[] = [
+          { label: 'Notifications', onPress: () => Alert.alert('Notifications', 'Push notifications are coming in a future update.') },
+          { label: 'Terms & Conditions', onPress: () => setOpenDoc('terms') },
+          { label: 'Privacy Policy', onPress: () => setOpenDoc('privacy') },
+          { label: 'Complaints & Content Removal Policy', onPress: () => setOpenDoc('complaints') },
+          { label: 'Creator Consent & Media Licensing', onPress: () => setOpenDoc('creatorConsent') },
+          { label: 'Language', onPress: () => Alert.alert('Language', 'BibleWay is currently in English. More languages are coming.') },
           {
-            icon: '🔔',
-            label: 'Notifications',
-            onPress: () =>
-              Alert.alert('Notifications', 'Push notifications are coming in a future update.'),
-          },
-          { icon: '📜', label: 'Terms & Conditions', onPress: () => setOpenDoc('terms') },
-          { icon: '🛡️', label: 'Privacy Policy', onPress: () => setOpenDoc('privacy') },
-          {
-            icon: '📋',
-            label: 'Complaints & Content Removal Policy',
-            onPress: () => setOpenDoc('complaints'),
-          },
-          {
-            icon: '✍️',
-            label: 'Creator Consent & Media Licensing',
-            onPress: () => setOpenDoc('creatorConsent'),
-          },
-          {
-            icon: '🌐',
-            label: 'Language',
-            onPress: () =>
-              Alert.alert('Language', 'BibleWay is currently in English. More languages are coming.'),
-          },
-          {
-            icon: '❓',
             label: 'Help & Support',
             onPress: () =>
               Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=BibleWay support`).catch(() =>
                 Alert.alert('Help & Support', `Write to us at ${SUPPORT_EMAIL}`),
               ),
           },
-          { icon: '🚪', label: 'Logout', onPress: () => void handleSignOut(), danger: true },
+          { label: 'Logout', onPress: () => void handleSignOut(), danger: true },
         ];
 
         return (
-          <View style={styles.settingsList}>
+          <View style={{ gap: 8 }}>
             {rows.map((row) => (
               <TouchableOpacity
                 key={row.label}
-                style={styles.settingRow}
                 onPress={row.onPress}
                 activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.sm, paddingVertical: 14, paddingHorizontal: 17 }}
               >
-                <Text style={styles.settingIcon}>{row.icon}</Text>
-                <Text style={[styles.settingLabel, row.danger && styles.settingLabelDanger]}>
-                  {row.label}
-                </Text>
-                <Text style={styles.settingChevron}>›</Text>
+                <View style={{ width: 6, height: 6, backgroundColor: row.danger ? c.live : c.gold, transform: [{ rotate: '45deg' }] }} />
+                <Text style={{ flex: 1, color: row.danger ? c.live : c.ink, fontSize: 13, fontFamily: Fonts.sans, letterSpacing: 0.3 }}>{row.label}</Text>
+                <Icon name="chevronRight" size={13} color={c.ink3} strokeWidth={1.7} />
               </TouchableOpacity>
             ))}
 
             <TouchableOpacity
-              style={[styles.settingRow, styles.deleteRow]}
               onPress={handleDeleteAccount}
               disabled={deleting}
               activeOpacity={0.7}
+              style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(224,106,80,0.35)', borderRadius: Radii.sm, paddingVertical: 14, paddingHorizontal: 17 }}
             >
-              <Text style={styles.settingIcon}>🗑️</Text>
-              <Text style={[styles.settingLabel, styles.settingLabelDanger]}>
+              <View style={{ width: 6, height: 6, backgroundColor: c.live, transform: [{ rotate: '45deg' }] }} />
+              <Text style={{ flex: 1, color: c.live, fontSize: 13, fontFamily: Fonts.sans, letterSpacing: 0.3 }}>
                 {deleting ? 'Deleting…' : 'Delete Account'}
               </Text>
             </TouchableOpacity>
 
-            <Text style={styles.versionText}>
+            <Text style={{ textAlign: 'right', color: c.ink3, fontSize: 10, paddingTop: 14, letterSpacing: 1, fontFamily: Fonts.sansLight }}>
               v{Constants.expoConfig?.version ?? '1.0.0'}
             </Text>
           </View>
@@ -299,105 +253,105 @@ export function EditProfileScreen({ onClose }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Success toast */}
+      {/* success toast */}
       <Animated.View
-        style={[
-          styles.successToast,
-          { opacity: successOpacity, transform: [{ translateY: successTranslateY }] },
-        ]}
         pointerEvents="none"
+        style={{
+          position: 'absolute', top: insets.top + 14, alignSelf: 'center', zIndex: 100,
+          opacity: successOpacity, transform: [{ translateY: successTranslateY }],
+          flexDirection: 'row', alignItems: 'center', gap: 9,
+          backgroundColor: c.surface2, borderWidth: 1, borderColor: c.hairline,
+          borderRadius: Radii.pill, paddingHorizontal: 18, paddingVertical: 10,
+        }}
       >
-        <Text style={styles.successToastText}>✅  Profile updated successfully!</Text>
+        <Icon name="check" size={14} color={c.gold} strokeWidth={1.8} />
+        <Text style={{ color: c.ink, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.4 }}>Profile updated</Text>
       </Animated.View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+      {/* header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 18, paddingVertical: 10 }}>
+        <GlassCircle icon="back" onPress={onClose} iconSize={16} />
+        <SerifTitle size={23}>Edit Profile</SerifTitle>
       </View>
 
-      {/* Avatar section */}
-      <View style={styles.avatarSection}>
-        <TouchableOpacity
-          style={styles.avatarWrapper}
-          onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarEmoji}>📷</Text>
-          </View>
-          <View style={styles.cameraIcon}>
-            <Text style={{ fontSize: 18 }}>📷</Text>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.changePhotoText}>Change Profile Photo</Text>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-            onPress={() => setActiveTab(tab.key)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-              {tab.label}
+      {/* avatar */}
+      <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 18, gap: 11 }}>
+        <TouchableOpacity onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} activeOpacity={0.85}>
+          <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 40, color: c.gold }}>
+              {(displayName?.trim()?.[0] ?? '?').toUpperCase()}
             </Text>
-          </TouchableOpacity>
-        ))}
+          </View>
+          <LinearGradient
+            colors={[c.goldBright, c.gold]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 3, borderColor: c.bg, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="camera" size={13} color={c.onGold} strokeWidth={1.7} />
+          </LinearGradient>
+        </TouchableOpacity>
+        <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>Change Profile Photo</Text>
       </View>
 
-      {/* Scrollable form */}
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      {/* tabs */}
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: c.hairlineSoft, paddingHorizontal: 12 }}>
+        {TABS.map((tab) => {
+          const on = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.7}
+              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: on ? c.gold : 'transparent' }}
+            >
+              <Text style={{ fontSize: 11.5, fontFamily: Fonts.sansMed, color: on ? c.gold : c.ink3, letterSpacing: 0.6 }}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         {renderTabContent()}
-        {activeTab !== 'preferences' && (
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-        )}
-        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Sticky save bar (not on Settings — nothing to save there) */}
+      {/* save bar */}
       {activeTab !== 'preferences' && (
-        <View style={[styles.saveBar, { paddingBottom: insets.bottom + Spacing.base }]}>
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-            <Text style={styles.saveBtnText}>Save Changes</Text>
-          </TouchableOpacity>
+        <View style={{ borderTopWidth: 1, borderTopColor: c.hairlineSoft, paddingHorizontal: 22, paddingTop: 15, paddingBottom: insets.bottom + 15 }}>
+          <PressScale onPress={handleSave} to={0.97}>
+            <LinearGradient
+              colors={[c.goldBright, c.gold]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={{ paddingVertical: 15, borderRadius: Radii.pill, alignItems: 'center' }}
+            >
+              <Text style={{ color: c.onGold, fontSize: 13.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.2 }}>Save Changes</Text>
+            </LinearGradient>
+          </PressScale>
         </View>
       )}
 
-      {/* Legal document viewer */}
-      <Modal
-        visible={openDoc != null}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setOpenDoc(null)}
-      >
+      {/* legal document viewer */}
+      <Modal visible={openDoc != null} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpenDoc(null)}>
         {openDoc != null && (
-          <View style={[styles.docContainer, { paddingTop: insets.top }]}>
-            <View style={styles.header}>
-              <TouchableOpacity
-                onPress={() => setOpenDoc(null)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.backArrow}>←</Text>
-              </TouchableOpacity>
-              <Text style={styles.headerTitle} numberOfLines={1}>
-                {LEGAL_DOCS[openDoc].title}
-              </Text>
+          <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 18, paddingVertical: 10 }}>
+              <GlassCircle icon="back" onPress={() => setOpenDoc(null)} iconSize={16} />
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ fontFamily: Fonts.serif, fontSize: 20, color: c.ink, letterSpacing: 0.4 }}>
+                  {LEGAL_DOCS[openDoc].title}
+                </Text>
+              </View>
             </View>
-            <ScrollView contentContainerStyle={styles.docScrollContent}>
-              <Text style={styles.docUpdated}>Last updated: {LEGAL_DOCS[openDoc].updated}</Text>
-              <Text style={styles.docBody}>{LEGAL_DOCS[openDoc].body}</Text>
-              <View style={{ height: insets.bottom + Spacing['2xl'] }} />
+            <ScrollView contentContainerStyle={{ padding: 22 }}>
+              <Text style={{ color: c.ink3, fontSize: 11, fontFamily: Fonts.sansLight, marginBottom: 16, letterSpacing: 0.4 }}>
+                Last updated: {LEGAL_DOCS[openDoc].updated}
+              </Text>
+              <Text style={{ color: c.ink2, fontSize: 13, lineHeight: 23, fontFamily: Fonts.sansLight, letterSpacing: 0.2 }}>
+                {LEGAL_DOCS[openDoc].body}
+              </Text>
+              <View style={{ height: insets.bottom + 30 }} />
             </ScrollView>
           </View>
         )}
@@ -405,279 +359,3 @@ export function EditProfileScreen({ onClose }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  signOutBtn: {
-    marginTop: Spacing.lg,
-    marginHorizontal: Spacing.base,
-    paddingVertical: Spacing.base,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.error,
-    alignItems: 'center',
-  },
-  signOutText: {
-    color: Colors.error,
-    fontSize: Typography.md,
-    fontWeight: Typography.semibold,
-  },
-  successToast: {
-    position: 'absolute',
-    top: 90,
-    left: '50%',
-    transform: [{ translateX: -140 }],
-    width: 280,
-    backgroundColor: Colors.success,
-    padding: Spacing.base,
-    borderRadius: BorderRadius.md,
-    zIndex: 100,
-    alignItems: 'center',
-  },
-  successToastText: {
-    color: '#fff',
-    fontSize: Typography.base,
-    fontWeight: Typography.semibold,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.base,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  backArrow: {
-    color: Colors.textPrimary,
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-  },
-  headerTitle: {
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-    color: Colors.textPrimary,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing['2xl'],
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: Spacing.base,
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarEmoji: {
-    fontSize: 60,
-  },
-  cameraIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 40,
-    height: 40,
-    backgroundColor: Colors.primary,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  changePhotoText: {
-    color: Colors.primary,
-    fontSize: Typography.md,
-    fontWeight: Typography.semibold,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: Spacing.base,
-    alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: Colors.primary,
-  },
-  tabText: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-    color: Colors.textMuted,
-  },
-  tabTextActive: {
-    color: Colors.primary,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: Spacing.lg,
-  },
-  formContent: {
-    gap: Spacing.xl,
-  },
-  formGroup: {
-    gap: Spacing.sm,
-  },
-  label: {
-    fontSize: Typography.base,
-    fontWeight: Typography.semibold,
-    color: Colors.textSecondary,
-  },
-  input: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.md,
-    color: Colors.textPrimary,
-    fontSize: Typography.md,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  handleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  handlePrefix: {
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderRightWidth: 0,
-    borderColor: Colors.border,
-    borderTopLeftRadius: BorderRadius.md,
-    borderBottomLeftRadius: BorderRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 15,
-  },
-  handlePrefixText: {
-    color: Colors.textMuted,
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-  },
-  handleInput: {
-    flex: 1,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
-  },
-  charCounter: {
-    textAlign: 'right',
-    color: Colors.textMuted,
-    fontSize: Typography.sm,
-  },
-  charCounterWarn: {
-    color: Colors.error,
-  },
-  actionsSection: {
-    gap: Spacing.base,
-  },
-  uploadPhotoBtn: {
-    backgroundColor: Colors.primary,
-    padding: 18,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-  },
-  uploadPhotoBtnText: {
-    color: '#fff',
-    fontSize: Typography.md,
-    fontWeight: Typography.semibold,
-  },
-  settingsList: {
-    gap: Spacing.xs,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.base,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.base,
-    paddingHorizontal: Spacing.base,
-  },
-  settingIcon: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
-  },
-  settingLabel: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: Typography.md,
-    fontWeight: Typography.semibold,
-  },
-  settingLabelDanger: {
-    color: Colors.error,
-  },
-  settingChevron: {
-    color: Colors.textMuted,
-    fontSize: Typography.xl,
-    fontWeight: Typography.bold,
-  },
-  deleteRow: {
-    marginTop: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.error,
-    backgroundColor: 'transparent',
-  },
-  versionText: {
-    textAlign: 'right',
-    color: Colors.textMuted,
-    fontSize: Typography.sm,
-    paddingTop: Spacing.lg,
-  },
-  docContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  docScrollContent: {
-    padding: Spacing.lg,
-  },
-  docUpdated: {
-    color: Colors.textMuted,
-    fontSize: Typography.sm,
-    marginBottom: Spacing.base,
-  },
-  docBody: {
-    color: Colors.textSecondary,
-    fontSize: Typography.base,
-    lineHeight: Typography.base * 1.7,
-  },
-  saveBar: {
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    padding: Spacing.lg,
-  },
-  saveBtn: {
-    backgroundColor: Colors.primary,
-    padding: 18,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontSize: Typography.lg,
-    fontWeight: Typography.bold,
-  },
-});
