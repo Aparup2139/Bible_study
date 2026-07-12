@@ -122,4 +122,14 @@ export class AuthService {
   checkHandle(handle: string): Promise<HandleAvailability> {
     return this.profiles.checkHandle(handle);
   }
+
+  /**
+   * Permanently delete the calling user's account. Every domain table references
+   * auth.users with ON DELETE CASCADE, so profile, podcasts, and streams rows go
+   * with it. Irreversible.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const { error } = await this.supabase.admin.auth.admin.deleteUser(userId);
+    if (error) throw new BadRequestException(error.message);
+  }
 }

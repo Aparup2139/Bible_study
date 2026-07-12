@@ -221,6 +221,22 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
   return { ok: true };
 }
 
+/** Permanently delete the signed-in user's account (server-side, cascades all
+ *  data), then clear the local session so the auth gate returns to sign-in. */
+export async function deleteAccount(): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { ok: false, error: 'Auth is not configured.' };
+  try {
+    await api.delete('/auth/account');
+    await supabase.auth.signOut();
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Could not delete the account.',
+    };
+  }
+}
+
 /** Step 2 of password reset: verify the code and set a new password. */
 export async function confirmPasswordReset(
   email: string,

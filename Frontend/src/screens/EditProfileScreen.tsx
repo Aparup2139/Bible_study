@@ -10,19 +10,25 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { useAppStore } from '../store/useAppStore';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import { useUpdateProfile } from '../hooks/useProfile';
-import { signOut } from '../services/session';
+import { signOut, deleteAccount } from '../services/session';
+import { LEGAL_DOCS, type LegalDocKey } from '../content/legal';
+
+const SUPPORT_EMAIL = 'aparupghosh85@gmail.com';
 
 type ProfileTab = 'info' | 'social' | 'preferences';
 
 const TABS: { key: ProfileTab; label: string }[] = [
   { key: 'info', label: 'Profile Info' },
   { key: 'social', label: 'Social Links' },
-  { key: 'preferences', label: 'Preferences' },
+  { key: 'preferences', label: 'Settings' },
 ];
 
 const BIO_MAX = 160;
@@ -40,6 +46,32 @@ export function EditProfileScreen({ onClose }: Props) {
     // The auth gate swaps to the sign-in screen automatically once the
     // session clears (Supabase onAuthStateChange).
     await signOut();
+  };
+
+  const [openDoc, setOpenDoc] = useState<LegalDocKey | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This permanently deletes your account, profile, streams, and uploads. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const res = await deleteAccount();
+            setDeleting(false);
+            if (!res.ok) {
+              Alert.alert('Could not delete account', res.error ?? 'Please try again.');
+            }
+            // On success the auth gate swaps to sign-in automatically.
+          },
+        },
+      ],
+    );
   };
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('info');
@@ -155,16 +187,6 @@ export function EditProfileScreen({ onClose }: Props) {
               >
                 <Text style={styles.uploadPhotoBtnText}>📷  Upload Profile Photo</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteAccountBtn}
-                onPress={() => Alert.alert('Delete Account', 'This action is permanent.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Delete', style: 'destructive' },
-                ])}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteAccountBtnText}>🗑️  Delete Account</Text>
-              </TouchableOpacity>
             </View>
           </View>
         );
@@ -195,15 +217,83 @@ export function EditProfileScreen({ onClose }: Props) {
           </View>
         );
 
-      case 'preferences':
+      case 'preferences': {
+        const rows: {
+          icon: string;
+          label: string;
+          onPress: () => void;
+          danger?: boolean;
+        }[] = [
+          {
+            icon: '🔔',
+            label: 'Notifications',
+            onPress: () =>
+              Alert.alert('Notifications', 'Push notifications are coming in a future update.'),
+          },
+          { icon: '📜', label: 'Terms & Conditions', onPress: () => setOpenDoc('terms') },
+          { icon: '🛡️', label: 'Privacy Policy', onPress: () => setOpenDoc('privacy') },
+          {
+            icon: '📋',
+            label: 'Complaints & Content Removal Policy',
+            onPress: () => setOpenDoc('complaints'),
+          },
+          {
+            icon: '✍️',
+            label: 'Creator Consent & Media Licensing',
+            onPress: () => setOpenDoc('creatorConsent'),
+          },
+          {
+            icon: '🌐',
+            label: 'Language',
+            onPress: () =>
+              Alert.alert('Language', 'BibleWay is currently in English. More languages are coming.'),
+          },
+          {
+            icon: '❓',
+            label: 'Help & Support',
+            onPress: () =>
+              Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=BibleWay support`).catch(() =>
+                Alert.alert('Help & Support', `Write to us at ${SUPPORT_EMAIL}`),
+              ),
+          },
+          { icon: '🚪', label: 'Logout', onPress: () => void handleSignOut(), danger: true },
+        ];
+
         return (
-          <View style={styles.formContent}>
-            <Text style={styles.prefNote}>
-              Notification and privacy preferences will be available in a future update. Content
-              language, stream quality defaults, and denomination-filter settings will appear here.
+          <View style={styles.settingsList}>
+            {rows.map((row) => (
+              <TouchableOpacity
+                key={row.label}
+                style={styles.settingRow}
+                onPress={row.onPress}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.settingIcon}>{row.icon}</Text>
+                <Text style={[styles.settingLabel, row.danger && styles.settingLabelDanger]}>
+                  {row.label}
+                </Text>
+                <Text style={styles.settingChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={[styles.settingRow, styles.deleteRow]}
+              onPress={handleDeleteAccount}
+              disabled={deleting}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingIcon}>🗑️</Text>
+              <Text style={[styles.settingLabel, styles.settingLabelDanger]}>
+                {deleting ? 'Deleting…' : 'Delete Account'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.versionText}>
+              v{Constants.expoConfig?.version ?? '1.0.0'}
             </Text>
           </View>
         );
+      }
     }
   };
 
@@ -267,18 +357,51 @@ export function EditProfileScreen({ onClose }: Props) {
       {/* Scrollable form */}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {renderTabContent()}
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {activeTab !== 'preferences' && (
+          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.85}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        )}
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Sticky save bar */}
-      <View style={[styles.saveBar, { paddingBottom: insets.bottom + Spacing.base }]}>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-          <Text style={styles.saveBtnText}>Save Changes</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Sticky save bar (not on Settings — nothing to save there) */}
+      {activeTab !== 'preferences' && (
+        <View style={[styles.saveBar, { paddingBottom: insets.bottom + Spacing.base }]}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
+            <Text style={styles.saveBtnText}>Save Changes</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Legal document viewer */}
+      <Modal
+        visible={openDoc != null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setOpenDoc(null)}
+      >
+        {openDoc != null && (
+          <View style={[styles.docContainer, { paddingTop: insets.top }]}>
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => setOpenDoc(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.backArrow}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {LEGAL_DOCS[openDoc].title}
+              </Text>
+            </View>
+            <ScrollView contentContainerStyle={styles.docScrollContent}>
+              <Text style={styles.docUpdated}>Last updated: {LEGAL_DOCS[openDoc].updated}</Text>
+              <Text style={styles.docBody}>{LEGAL_DOCS[openDoc].body}</Text>
+              <View style={{ height: insets.bottom + Spacing['2xl'] }} />
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -480,25 +603,65 @@ const styles = StyleSheet.create({
     fontSize: Typography.md,
     fontWeight: Typography.semibold,
   },
-  deleteAccountBtn: {
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    padding: 18,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
+  settingsList: {
+    gap: Spacing.xs,
   },
-  deleteAccountBtnText: {
-    color: Colors.error,
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.base,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.base,
+    paddingHorizontal: Spacing.base,
+  },
+  settingIcon: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+  settingLabel: {
+    flex: 1,
+    color: Colors.textPrimary,
     fontSize: Typography.md,
     fontWeight: Typography.semibold,
   },
-  prefNote: {
+  settingLabelDanger: {
+    color: Colors.error,
+  },
+  settingChevron: {
     color: Colors.textMuted,
+    fontSize: Typography.xl,
+    fontWeight: Typography.bold,
+  },
+  deleteRow: {
+    marginTop: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    backgroundColor: 'transparent',
+  },
+  versionText: {
+    textAlign: 'right',
+    color: Colors.textMuted,
+    fontSize: Typography.sm,
+    paddingTop: Spacing.lg,
+  },
+  docContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  docScrollContent: {
+    padding: Spacing.lg,
+  },
+  docUpdated: {
+    color: Colors.textMuted,
+    fontSize: Typography.sm,
+    marginBottom: Spacing.base,
+  },
+  docBody: {
+    color: Colors.textSecondary,
     fontSize: Typography.base,
-    lineHeight: Typography.base * 1.6,
-    textAlign: 'center',
-    paddingTop: Spacing.xl,
+    lineHeight: Typography.base * 1.7,
   },
   saveBar: {
     backgroundColor: Colors.surface,

@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Query, UseGuards } from '@nestjs/common';
 import type { HandleAvailability } from '@bibleway/shared-types';
+import { SupabaseAuthGuard, type AuthUser } from './auth.guard';
+import { CurrentUser } from './current-user.decorator';
 import { AuthService, type SessionTokens } from './auth.service';
 import { CheckHandleQueryDto, SignInWithUsernameDto, SignUpDto } from './dto/auth.dto';
 
@@ -23,5 +25,13 @@ export class AuthController {
   @Get('check-handle')
   checkHandle(@Query() query: CheckHandleQueryDto): Promise<HandleAvailability> {
     return this.auth.checkHandle(query.handle);
+  }
+
+  /** Authenticated: permanently delete the calling user's account. */
+  @Delete('account')
+  @UseGuards(SupabaseAuthGuard)
+  async deleteAccount(@CurrentUser() user: AuthUser) {
+    await this.auth.deleteAccount(user.id);
+    return { ok: true };
   }
 }
