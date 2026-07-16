@@ -129,8 +129,15 @@ export type DenominationGroup =
   | 'PROTESTANT_EVANGELICAL'
   | 'PENTECOSTAL'
   | 'CHARISMATIC'
-  | 'BAPTIST'
-  | 'ADVENTIST'
+  | 'HISTORICALLY_BLACK'
+  | 'PEACE'
+  | 'HOLINESS'
+  | 'RESTORATIONIST'
+  | 'NON_DENOMINATIONAL'
+  | 'AFRICAN_INDIGENOUS'
+  | 'ASIAN'
+  | 'BAPTIST' // legacy, no longer seeded
+  | 'ADVENTIST' // legacy, no longer seeded
   | 'OTHER';
 
 // ─── Navigation ───────────────────────────────────────────────────────────────

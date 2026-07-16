@@ -16,12 +16,19 @@ const GROUP_LABELS: Record<string, string> = {
   CATHOLIC: 'Catholic',
   ORTHODOX: 'Orthodox',
   PROTESTANT_MAINLINE: 'Protestant – Mainline',
-  PROTESTANT_EVANGELICAL: 'Evangelical',
+  PROTESTANT_EVANGELICAL: 'Protestant – Evangelical',
   PENTECOSTAL: 'Pentecostal',
   CHARISMATIC: 'Charismatic',
+  HISTORICALLY_BLACK: 'Historically Black Churches',
+  PEACE: 'Peace Churches',
+  HOLINESS: 'Holiness Churches',
+  RESTORATIONIST: 'Restorationist',
+  NON_DENOMINATIONAL: 'Non-Denominational',
+  AFRICAN_INDIGENOUS: 'African Indigenous',
+  ASIAN: 'Asian Churches',
   BAPTIST: 'Baptist',
   ADVENTIST: 'Adventist',
-  OTHER: 'Other',
+  OTHER: 'Other Traditions',
 };
 
 type DenominationOption = { value: string; label: string; group: string };
@@ -163,14 +170,18 @@ export function DenominationScreen({ onClose }: Props) {
         {info && (
           <View style={{ marginHorizontal: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.xxl, paddingVertical: 22, paddingHorizontal: 20, gap: 14 }}>
             <Text style={{ fontFamily: Fonts.serif, fontSize: 22, color: c.ink, letterSpacing: 0.3 }}>{info.name}</Text>
-            <Text style={{ fontSize: 12.5, color: c.ink2, lineHeight: 22, fontFamily: Fonts.sansLight, letterSpacing: 0.2 }}>{info.description}</Text>
+            {!!info.description && (
+              <Text style={{ fontSize: 12.5, color: c.ink2, lineHeight: 22, fontFamily: Fonts.sansLight, letterSpacing: 0.2 }}>{info.description}</Text>
+            )}
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 2 }}>
-              <StatTile value={info.globalFollowers} label="Global Followers" />
-              <StatTile value={`${info.foundedYear}`} label="Founded" />
-              <StatTile value={info.bibleVersion.split('/')[0].trim()} label="Bible Version" />
-              <StatTile value={worldwideShort(info.worldwideMembers)} label="Worldwide" />
-            </View>
+            {info.foundedYear > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 2 }}>
+                <StatTile value={info.globalFollowers} label="Global Followers" />
+                <StatTile value={`${info.foundedYear}`} label="Founded" />
+                <StatTile value={info.bibleVersion.split('/')[0].trim()} label="Bible Version" />
+                <StatTile value={worldwideShort(info.worldwideMembers)} label="Worldwide" />
+              </View>
+            )}
 
             <PressScale onPress={() => Alert.alert('Joined!', `You've joined the ${info.name} community.`)} to={0.97}>
               <LinearGradient
