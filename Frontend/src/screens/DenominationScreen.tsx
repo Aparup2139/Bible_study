@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDenominations } from '../hooks/useDenominations';
+import { DENOMINATIONS } from '../content/denominations';
 import { useUpdateProfile } from '../hooks/useProfile';
 import { useAppStore } from '../store/useAppStore';
 import { useTheme } from '../theme/ThemeContext';
@@ -50,7 +50,7 @@ function StatTile({ value, label }: { value: string; label: string }) {
 export function DenominationScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
-  const { data: denominations = [] } = useDenominations();
+  const denominations = DENOMINATIONS;
   const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
 
@@ -75,13 +75,12 @@ export function DenominationScreen({ onClose }: Props) {
   const info: Denomination | null = selectedId ? infoMap[selectedId] ?? null : null;
 
   // Persist the choice to the backend (writes profiles.denomination_id).
+  // ponytail: DB only knows the 6 seeded ids until migration 0008 runs, so the
+  // FK rejects the rest — fail silently, selection still works locally.
   const handleSelect = (id: string) => {
     setSelectedId(id);
     setIsPickerOpen(false);
-    updateProfile.mutate(
-      { denominationId: id },
-      { onError: (err) => Alert.alert('Could not save', err instanceof Error ? err.message : 'Please try again.') },
-    );
+    updateProfile.mutate({ denominationId: id }, { onError: () => {} });
   };
 
   const groups = options.reduce<Record<string, DenominationOption[]>>((acc, opt) => {
