@@ -69,6 +69,7 @@ export function ChatInputBar({ onSend, bottomInset }: { onSend: (text: string) =
         onChangeText={setText}
         onSubmitEditing={submit}
         returnKeyType="send"
+        blurOnSubmit={false}
         placeholder="Say something…"
         placeholderTextColor="rgba(242,234,218,0.45)"
         maxLength={280}

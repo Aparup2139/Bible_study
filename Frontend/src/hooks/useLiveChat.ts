@@ -39,7 +39,7 @@ export function useLiveChat(streamId: string, senderName: string) {
     channel
       .on('broadcast', { event: 'msg' }, ({ payload }) => {
         const m = payload as ChatMessage;
-        if (typeof m?.text !== 'string' || typeof m?.name !== 'string') return;
+        if (typeof m?.text !== 'string' || typeof m?.name !== 'string' || typeof m?.id !== 'string') return;
         setMessages((prev) => appendMessage(prev, m));
       })
       .subscribe();
