@@ -1,34 +1,35 @@
-// Audio room ("Study Chat") domain types (Phase 6 — backed by LiveKit).
+// Study Chat (audio room) — backed by Agora RTC, reusing the same App ID as
+// video live streaming (see streams/agora.service.ts). One room is live at a
+// time; joining auto-hosts if none exists (no discovery/list UI for this).
 
 export type ParticipantRole = 'host' | 'speaker' | 'listener';
 
-export interface AudioRoom {
+export interface StudyRoomSummary {
   id: string;
   title: string;
   subtitle: string;
+  status: 'live' | 'ended';
   speakerCount: number;
   listenerCount: number;
-  isLive: boolean;
 }
 
-export interface RoomParticipant {
-  id: string;
+export interface StudyRoomParticipant {
+  userId: string;
   displayName: string;
   avatarEmoji: string;
   role: ParticipantRole;
-  isMuted: boolean;
-  isSpeaking: boolean;
+  handRaised: boolean;
+  forceMuted: boolean;
 }
 
-export interface CreateRoomInput {
-  title: string;
-  subtitle: string;
-}
-
-/** Response when joining a room — the LiveKit access token + connection URL. */
-export interface RoomJoinToken {
+/** Returned by POST /rooms/join and POST /rooms/:id/token — what the client needs to join the Agora channel. */
+export interface JoinRoomResult {
   roomId: string;
+  /** Agora channel name (== roomId). */
+  channel: string;
+  /** Wildcard uid — Agora assigns the session's actual uid on join. */
+  uid: number;
   token: string;
-  url: string;
+  appId: string;
   role: ParticipantRole;
 }
