@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
 import { useAppStore } from '../store/useAppStore';
 import { useGoLive, useEndStream, useRtcToken, useStreamDetail } from '../hooks/useLiveStreams';
+import { useLiveChat } from '../hooks/useLiveChat';
 import { getAgora, getEngine, destroyEngine, isAgoraAvailable } from '../services/agoraEngine';
 import { useTheme } from '../theme/ThemeContext';
 import { Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, LiveBadge, PressScale } from '../components/elegant/Kit';
+import { ChatFeed } from '../components/elegant/LiveChat';
 
 interface Props {
   onClose: () => void;
@@ -55,6 +57,9 @@ export function LiveStreamScreen({ onClose }: Props) {
   const [error, setError] = useState('');
   const [streamId, setStreamId] = useState<string | null>(null);
   const [engineReady, setEngineReady] = useState(false);
+
+  // Host reads chat and answers on air — no input bar while broadcasting.
+  const { messages } = useLiveChat(streamId ?? '', profile.displayName);
 
   const engineRef = useRef<IRtcEngine | null>(null);
   const handlerRef = useRef<IRtcEngineEventHandler | null>(null);
@@ -202,7 +207,8 @@ export function LiveStreamScreen({ onClose }: Props) {
       )}
 
       {isBroadcasting && (
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 150, paddingHorizontal: 22, zIndex: 8 }}>
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 130, paddingHorizontal: 22, zIndex: 8, gap: 10 }}>
+          <ChatFeed messages={messages} />
           <View style={{ backgroundColor: 'rgba(12,9,6,0.62)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.22)', borderRadius: Radii.md, paddingVertical: 14, paddingHorizontal: 16 }}>
             <Text style={{ color: '#EEDFBE', fontSize: 12, fontFamily: Fonts.sans, letterSpacing: 0.4 }}>
               {status === 'connecting' ? 'Starting…' : `${viewers} watching · live in the BibleWay feed`}
