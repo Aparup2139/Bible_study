@@ -148,8 +148,8 @@ export function Icon({ name, size = 24, color = '#C9A257', strokeWidth = 1.5 }: 
       </>);
     case 'send':
       return wrap(<>
-        <Path {...s} d="M20 4 4 11l6 2.5L12.5 20 20 4z" />
-        <Path {...s} d="M10 13.5 20 4" />
+        <Path {...s} strokeWidth={1.8} d="M12 19V5.5" />
+        <Path {...s} strokeWidth={1.8} d="M6.5 11L12 5.5l5.5 5.5" />
       </>);
     default:
       return wrap(null);
