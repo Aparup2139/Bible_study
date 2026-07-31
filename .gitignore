@@ -18,3 +18,4 @@ web-build/
 .env.production.local
 .claude/
 agora-web-test.html
+supabase-chat-test.html
