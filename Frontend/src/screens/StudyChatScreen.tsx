@@ -160,7 +160,7 @@ export function StudyChatScreen({ onClose }: Props) {
   const isHostRef = useRef(false);
 
   const agoraReady = isAgoraAvailable();
-  const { data: detail } = useRoomDetail(roomId, phase !== 'error');
+  const { data: detail } = useRoomDetail(roomId, phase === 'connecting' || phase === 'live');
   const { data: participants = [] } = useRoomParticipants(roomId, phase === 'live');
 
   const teardown = useCallback((endOnServer: boolean) => {
@@ -230,6 +230,11 @@ export function StudyChatScreen({ onClose }: Props) {
             setPhase('error');
             setError('Could not connect to the audio room.');
           },
+          onTokenPrivilegeWillExpire: () => {
+            void rtcToken.mutateAsync(res.roomId)
+              .then((t) => engineRef.current?.renewToken(t.token))
+              .catch(() => {});
+          },
         };
         handlerRef.current = handler;
         engine.registerEventHandler(handler);
@@ -274,15 +279,19 @@ export function StudyChatScreen({ onClose }: Props) {
       wasListenerRef.current = false;
       setRole(me.role);
       (async () => {
-        const engine = engineRef.current;
-        const agora = getAgora();
-        if (!engine || !agora) return;
-        const t = await rtcToken.mutateAsync(roomId);
-        engine.renewToken(t.token);
-        engine.setClientRole(agora.ClientRoleType.ClientRoleBroadcaster);
-        engine.updateChannelMediaOptions({ publishMicrophoneTrack: true });
-        engine.muteLocalAudioStream(true); // promoted while muted, same as an initial join
-        setMuted(true);
+        try {
+          const engine = engineRef.current;
+          const agora = getAgora();
+          if (!engine || !agora) return;
+          const t = await rtcToken.mutateAsync(roomId);
+          engine.renewToken(t.token);
+          engine.setClientRole(agora.ClientRoleType.ClientRoleBroadcaster);
+          engine.updateChannelMediaOptions({ publishMicrophoneTrack: true });
+          engine.muteLocalAudioStream(true); // promoted while muted, same as an initial join
+          setMuted(true);
+        } catch {
+          wasListenerRef.current = true; // retry on the next poll instead of getting stuck as a fake speaker
+        }
       })();
     } else if (me.role === 'listener') {
       wasListenerRef.current = true;
