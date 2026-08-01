@@ -168,24 +168,47 @@ export function StudyChatScreen({ onClose }: Props) {
     const agora = getAgora()!;
     let cancelled = false;
 
+    // Bail out of "Connecting…" if the join never completes (bad network, server down, etc).
+    const connectTimeout = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      teardown(true);
+      setPhase('error');
+      setError('Connecting to the audio room timed out. Check your connection and try again.');
+    }, 20_000);
+
     (async () => {
       try {
         if (!(await ensureMicPermission())) {
+          clearTimeout(connectTimeout);
           setPhase('error');
           setError('Microphone permission is required to join Study Chat. Enable it in Settings.');
           return;
         }
         const res = await joinRoom.mutateAsync({ displayName: profile.displayName, avatarEmoji: '🙂' });
-        if (cancelled) return;
+        // The server-side join already happened even if we were cancelled while in flight —
+        // record it so the cleanup below still notifies the server instead of orphaning the room.
         roomIdRef.current = res.roomId;
         isHostRef.current = res.role === 'host';
+        if (cancelled) return;
         setRoomId(res.roomId);
         setRole(res.role);
 
         const engine = getEngine(res.appId);
         engineRef.current = engine;
         const isPublisher = res.role !== 'listener';
-        const handler: IRtcEngineEventHandler = { onJoinChannelSuccess: () => setPhase('live') };
+        const handler: IRtcEngineEventHandler = {
+          onJoinChannelSuccess: () => {
+            clearTimeout(connectTimeout);
+            setPhase('live');
+          },
+          onError: () => {
+            if (cancelled) return;
+            clearTimeout(connectTimeout);
+            setPhase('error');
+            setError('Could not connect to the audio room.');
+          },
+        };
         handlerRef.current = handler;
         engine.registerEventHandler(handler);
         engine.enableAudio();
@@ -196,6 +219,7 @@ export function StudyChatScreen({ onClose }: Props) {
         });
         if (isPublisher) engine.muteLocalAudioStream(true); // join muted, matches the footer's default
       } catch (e) {
+        clearTimeout(connectTimeout);
         if (!cancelled) {
           setPhase('error');
           setError(e instanceof Error ? e.message : 'Could not join Study Chat.');
@@ -205,14 +229,19 @@ export function StudyChatScreen({ onClose }: Props) {
 
     return () => {
       cancelled = true;
+      clearTimeout(connectTimeout);
       teardown(true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agoraReady]);
 
   useEffect(() => {
-    if (detail?.status === 'ended' && phase === 'live') setPhase('ended');
-  }, [detail?.status, phase]);
+    if (detail?.status === 'ended' && phase === 'live') {
+      // Room ended server-side (host left) — drop our own engine without re-notifying the server.
+      teardown(false);
+      setPhase('ended');
+    }
+  }, [detail?.status, phase, teardown]);
 
   const toggleMute = useCallback(() => {
     if (role === 'listener') return; // listeners never publish audio
