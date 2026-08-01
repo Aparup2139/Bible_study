@@ -132,13 +132,13 @@ export const MOCK_PODCAST_CATEGORIES: PodcastCategory[] = [
 ];
 
 export const MOCK_ROOM_PARTICIPANTS: RoomParticipant[] = [
-  { id: 'p1', displayName: 'Pastor James', avatarEmoji: '👨‍💼', role: 'host', isMuted: false, isSpeaking: true },
-  { id: 'p2', displayName: 'Sister Mary', avatarEmoji: '👩‍💼', role: 'speaker', isMuted: false, isSpeaking: false },
-  { id: 'p3', displayName: 'Deacon Paul', avatarEmoji: '👴', role: 'speaker', isMuted: true, isSpeaking: false },
-  { id: 'p4', displayName: 'Grace_M', avatarEmoji: '👩', role: 'listener', isMuted: true, isSpeaking: false },
-  { id: 'p5', displayName: 'David_K', avatarEmoji: '👦', role: 'listener', isMuted: true, isSpeaking: false },
-  { id: 'p6', displayName: 'Sarah_P', avatarEmoji: '👧', role: 'listener', isMuted: true, isSpeaking: false },
-  { id: 'p7', displayName: 'Michael_R', avatarEmoji: '🧑', role: 'listener', isMuted: true, isSpeaking: false },
+  { id: 'p1', displayName: 'Pastor James', avatarEmoji: '👨‍💼', role: 'host', isMuted: false, isSpeaking: true, handRaised: false },
+  { id: 'p2', displayName: 'Sister Mary', avatarEmoji: '👩‍💼', role: 'speaker', isMuted: false, isSpeaking: false, handRaised: false },
+  { id: 'p3', displayName: 'Deacon Paul', avatarEmoji: '👴', role: 'speaker', isMuted: true, isSpeaking: false, handRaised: false },
+  { id: 'p4', displayName: 'Grace_M', avatarEmoji: '👩', role: 'listener', isMuted: true, isSpeaking: false, handRaised: false },
+  { id: 'p5', displayName: 'David_K', avatarEmoji: '👦', role: 'listener', isMuted: true, isSpeaking: false, handRaised: false },
+  { id: 'p6', displayName: 'Sarah_P', avatarEmoji: '👧', role: 'listener', isMuted: true, isSpeaking: false, handRaised: false },
+  { id: 'p7', displayName: 'Michael_R', avatarEmoji: '🧑', role: 'listener', isMuted: true, isSpeaking: false, handRaised: false },
 ];
 
 export const MOCK_DENOMINATIONS: Denomination[] = [

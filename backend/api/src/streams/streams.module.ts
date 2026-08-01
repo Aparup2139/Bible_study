@@ -7,6 +7,6 @@ import { AgoraService } from './agora.service';
 @Module({
   controllers: [StreamsController],
   providers: [StreamsService, CloudflareStreamService, AgoraService],
-  exports: [StreamsService],
+  exports: [StreamsService, AgoraService],
 })
 export class StreamsModule {}

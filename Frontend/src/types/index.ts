@@ -62,9 +62,9 @@ export interface AudioRoom {
   id: string;
   title: string;
   subtitle: string;
+  status: 'live' | 'ended';
   speakerCount: number;
   listenerCount: number;
-  isLive: boolean;
 }
 
 export interface RoomParticipant {
@@ -74,6 +74,7 @@ export interface RoomParticipant {
   role: 'host' | 'speaker' | 'listener';
   isMuted: boolean;
   isSpeaking: boolean;
+  handRaised: boolean;
 }
 
 // ─── Podcast ──────────────────────────────────────────────────────────────────
