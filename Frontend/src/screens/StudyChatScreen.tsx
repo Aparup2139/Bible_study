@@ -211,6 +211,7 @@ export function StudyChatScreen({ onClose }: Props) {
         // record it so the cleanup below still notifies the server instead of orphaning the room.
         roomIdRef.current = res.roomId;
         isHostRef.current = res.role === 'host';
+        wasListenerRef.current = res.role === 'listener';
         if (cancelled) return;
         setRoomId(res.roomId);
         setRole(res.role);
