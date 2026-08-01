@@ -8,8 +8,12 @@ import {
   useEndRoom,
   useJoinRoom,
   useLeaveRoom,
+  usePromoteParticipant,
+  useRaiseHand,
   useRoomDetail,
   useRoomParticipants,
+  useRtcRoomToken,
+  useSetForceMuted,
 } from '../hooks/useStudyRoom';
 import { destroyEngine, getAgora, getEngine, isAgoraAvailable } from '../services/agoraEngine';
 import { useTheme } from '../theme/ThemeContext';
@@ -34,7 +38,7 @@ function initialsOf(name: string): string {
   return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 1).toUpperCase();
 }
 
-function SpeakerAvatar({ participant }: { participant: RoomParticipant }) {
+function SpeakerAvatar({ participant, onForceMute }: { participant: RoomParticipant; onForceMute?: () => void }) {
   const { c } = useTheme();
   const ring = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +57,7 @@ function SpeakerAvatar({ participant }: { participant: RoomParticipant }) {
   const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [1, 1.28] });
   const ringOpacity = ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
 
-  return (
+  const avatarBody = (
     <View style={{ alignItems: 'center', width: 82, gap: 9 }}>
       <View style={{ width: 72, height: 72 }}>
         {participant.isSpeaking ? (
@@ -94,16 +98,22 @@ function SpeakerAvatar({ participant }: { participant: RoomParticipant }) {
       </Text>
     </View>
   );
+
+  return onForceMute ? (
+    <PressScale onPress={onForceMute} to={0.95}>{avatarBody}</PressScale>
+  ) : (
+    avatarBody
+  );
 }
 
-function ListenerAvatar({ participant }: { participant: RoomParticipant }) {
+function ListenerAvatar({ participant, onApprove }: { participant: RoomParticipant; onApprove?: () => void }) {
   const { c } = useTheme();
   return (
     <View style={{ alignItems: 'center', width: 62, gap: 6 }}>
       <View
         style={{
           width: 54, height: 54, borderRadius: 27,
-          backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft,
+          backgroundColor: c.surface, borderWidth: 1, borderColor: participant.handRaised ? c.gold : c.hairlineSoft,
           alignItems: 'center', justifyContent: 'center',
         }}
       >
@@ -114,6 +124,11 @@ function ListenerAvatar({ participant }: { participant: RoomParticipant }) {
       <Text numberOfLines={1} style={{ fontSize: 10, fontFamily: Fonts.sansLight, color: c.ink3, textAlign: 'center', maxWidth: 62 }}>
         {participant.displayName}
       </Text>
+      {participant.handRaised && onApprove ? (
+        <TouchableOpacity onPress={onApprove} activeOpacity={0.7}>
+          <Text style={{ color: c.gold, fontSize: 9.5, fontFamily: Fonts.sansMed }}>✋ Approve</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -122,10 +137,16 @@ export function StudyChatScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
   const profile = useAppStore((s) => s.profile);
+  const myId = profile.id;
 
   const joinRoom = useJoinRoom();
   const leaveRoom = useLeaveRoom();
   const endRoom = useEndRoom();
+  const raiseHand = useRaiseHand();
+  const promoteParticipant = usePromoteParticipant();
+  const setForceMuted = useSetForceMuted();
+  const rtcToken = useRtcRoomToken();
+  const wasListenerRef = useRef(true);
 
   const [phase, setPhase] = useState<'connecting' | 'live' | 'ended' | 'error'>('connecting');
   const [error, setError] = useState('');
@@ -243,6 +264,38 @@ export function StudyChatScreen({ onClose }: Props) {
     }
   }, [detail?.status, phase, teardown]);
 
+  useEffect(() => {
+    if (phase !== 'live' || !roomId) return;
+    const me = participants.find((p) => p.id === myId);
+    if (!me) return;
+
+    if (wasListenerRef.current && me.role !== 'listener') {
+      wasListenerRef.current = false;
+      setRole(me.role);
+      (async () => {
+        const engine = engineRef.current;
+        const agora = getAgora();
+        if (!engine || !agora) return;
+        const t = await rtcToken.mutateAsync(roomId);
+        engine.renewToken(t.token);
+        engine.setClientRole(agora.ClientRoleType.ClientRoleBroadcaster);
+        engine.updateChannelMediaOptions({ publishMicrophoneTrack: true });
+        engine.muteLocalAudioStream(true); // promoted while muted, same as an initial join
+        setMuted(true);
+      })();
+    } else if (me.role === 'listener') {
+      wasListenerRef.current = true;
+    }
+
+    if (me.isMuted && !muted) {
+      // RoomParticipant.isMuted mirrors the server's forceMuted flag for everyone but ourselves
+      // (see displayParticipants below, which overrides it with local mute state for `myId`).
+      setMuted(true);
+      engineRef.current?.muteLocalAudioStream(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants, phase, roomId, myId]);
+
   const toggleMute = useCallback(() => {
     if (role === 'listener') return; // listeners never publish audio
     const engine = engineRef.current;
@@ -257,7 +310,6 @@ export function StudyChatScreen({ onClose }: Props) {
     onClose();
   }, [teardown, onClose]);
 
-  const myId = profile.id;
   const displayParticipants: RoomParticipant[] = participants.map((p) =>
     p.id === myId ? { ...p, isMuted: role === 'listener' ? true : muted } : p,
   );
@@ -328,7 +380,17 @@ export function StudyChatScreen({ onClose }: Props) {
             <SectionLabel>Speakers · {speakers.length}</SectionLabel>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 20, marginBottom: 26 }}>
-            {speakers.map((p) => <SpeakerAvatar key={p.id} participant={p} />)}
+            {speakers.map((p) => (
+              <SpeakerAvatar
+                key={p.id}
+                participant={p}
+                onForceMute={
+                  role === 'host' && p.id !== myId && roomId
+                    ? () => setForceMuted.mutate({ roomId, userId: p.id, muted: !p.isMuted })
+                    : undefined
+                }
+              />
+            ))}
           </View>
 
           <View
@@ -341,13 +403,30 @@ export function StudyChatScreen({ onClose }: Props) {
             <Text style={{ color: c.ink3, fontSize: 12, fontFamily: Fonts.sansLight, letterSpacing: 0.3 }}>
               {listeners.length} others listening
             </Text>
+            {role === 'listener' && (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => roomId && raiseHand.mutate(roomId)} disabled={raiseHand.isPending}>
+                <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.4 }}>
+                  {participants.find((p) => p.id === myId)?.handRaised ? 'Hand raised ✋' : 'Raise hand'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={{ marginBottom: 16 }}>
             <SectionLabel>Listeners · {listeners.length}</SectionLabel>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
-            {listeners.map((p) => <ListenerAvatar key={p.id} participant={p} />)}
+            {listeners.map((p) => (
+              <ListenerAvatar
+                key={p.id}
+                participant={p}
+                onApprove={
+                  role === 'host' && roomId
+                    ? () => promoteParticipant.mutate({ roomId, userId: p.id })
+                    : undefined
+                }
+              />
+            ))}
           </View>
           <View style={{ height: 120 }} />
         </ScrollView>
