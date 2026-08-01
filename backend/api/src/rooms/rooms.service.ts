@@ -162,6 +162,18 @@ export class RoomsService {
       })
       .select('*')
       .single();
+    if (createErr?.code === '23505') {
+      // Lost the create/create race (study_rooms_one_live_idx) — the concurrent winner's row is the live room.
+      const { data: winner, error: refindErr } = await this.supabase.admin
+        .from('study_rooms')
+        .select('*')
+        .eq('status', 'live')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (refindErr) throw new BadRequestException(refindErr.message);
+      if (winner) return winner as RoomRow;
+    }
     if (createErr || !created) throw new BadRequestException(createErr?.message ?? 'Failed to create room');
     return created as RoomRow;
   }
