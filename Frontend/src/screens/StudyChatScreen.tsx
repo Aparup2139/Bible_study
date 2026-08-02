@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, PermissionsAndroid, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, PermissionsAndroid, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
@@ -15,6 +15,8 @@ import {
   useRtcRoomToken,
   useSetForceMuted,
 } from '../hooks/useStudyRoom';
+import { useLiveChat } from '../hooks/useLiveChat';
+import { ChatFeed, ChatInputBar } from '../components/elegant/LiveChat';
 import { destroyEngine, getAgora, getEngine, isAgoraAvailable } from '../services/agoraEngine';
 import { useTheme } from '../theme/ThemeContext';
 import { Deep, Fonts, Radii } from '../theme/elegant';
@@ -153,6 +155,7 @@ export function StudyChatScreen({ onClose }: Props) {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [role, setRole] = useState<'host' | 'speaker' | 'listener'>('listener');
   const [muted, setMuted] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const engineRef = useRef<IRtcEngine | null>(null);
   const handlerRef = useRef<IRtcEngineEventHandler | null>(null);
@@ -162,6 +165,8 @@ export function StudyChatScreen({ onClose }: Props) {
   const agoraReady = isAgoraAvailable();
   const { data: detail } = useRoomDetail(roomId, phase === 'connecting' || phase === 'live');
   const { data: participants = [] } = useRoomParticipants(roomId, phase === 'live');
+  // Same ephemeral Realtime Broadcast chat as live streams — channel chat:{roomId}, no backend.
+  const { messages, send } = useLiveChat(roomId ?? '', profile.displayName);
 
   const teardown = useCallback((endOnServer: boolean) => {
     const engine = engineRef.current;
@@ -442,6 +447,15 @@ export function StudyChatScreen({ onClose }: Props) {
         </ScrollView>
       )}
 
+      {phase === 'live' && chatOpen && (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <ChatFeed messages={messages} />
+          </View>
+          <ChatInputBar onSend={send} bottomInset={0} />
+        </KeyboardAvoidingView>
+      )}
+
       {phase === 'live' && (
         <View
           style={{
@@ -468,13 +482,13 @@ export function StudyChatScreen({ onClose }: Props) {
                 </View>
               </PressScale>
             )}
-            <PressScale to={0.9}>
+            <PressScale onPress={() => setChatOpen((v) => !v)} to={0.9}>
               <LinearGradient
-                colors={[c.goldBright, c.gold]}
+                colors={chatOpen ? [c.gold, c.goldBright] : [c.goldBright, c.gold]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Icon name="chat" size={17} color={c.onGold} strokeWidth={1.6} />
+                <Icon name={chatOpen ? 'x' : 'chat'} size={17} color={c.onGold} strokeWidth={1.6} />
               </LinearGradient>
             </PressScale>
           </View>
