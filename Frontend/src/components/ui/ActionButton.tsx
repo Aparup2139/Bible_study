@@ -1,11 +1,11 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   View,
   Text,
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PressScale } from '../elegant/Kit';
 import { Colors, Typography, Layout, BorderRadius } from '../../theme';
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 
 export function ActionButton({ icon, label, isActive = false, onPress }: Props) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75} style={styles.wrapper}>
+    <PressScale onPress={onPress} style={styles.wrapper}>
       {isActive ? (
         <LinearGradient
           colors={[Colors.gradientRedStart, Colors.gradientRedEnd]}
@@ -31,7 +31,7 @@ export function ActionButton({ icon, label, isActive = false, onPress }: Props) 
         </View>
       )}
       <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 

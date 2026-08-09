@@ -15,7 +15,7 @@ interface Props {
 }
 
 /** Thin line icons — 24×24 viewBox, stroke-based (matches the elegant design language). */
-export function Icon({ name, size = 24, color = '#C9A257', strokeWidth = 1.5 }: Props) {
+export function Icon({ name, size = 24, color = '#D3D5DA', strokeWidth = 1.5 }: Props) {
   const s = {
     stroke: color,
     strokeWidth,

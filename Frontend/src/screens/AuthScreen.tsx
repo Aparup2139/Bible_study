@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput,
-  TouchableOpacity, View,
+  ActivityIndicator, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +12,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { PressScale } from '../components/elegant/Kit';
+import { KeyboardAwareForm } from '../components/elegant/Keyboard';
 
 type Mode = 'signin' | 'signup' | 'forgot' | 'reset';
 
@@ -51,7 +51,7 @@ function Field({
  */
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const [mode, setMode] = useState<Mode>('signin');
 
   const [identifier, setIdentifier] = useState('');
@@ -142,20 +142,20 @@ export function AuthScreen() {
   const glassBtn = {
     backgroundColor: c.surface2, borderWidth: 1, borderColor: c.hairlineSoft,
     borderRadius: Radii.pill, paddingVertical: 14, alignItems: 'center' as const,
+    ...elev.chip,
   };
 
   const link = (label: string, onPress: () => void, style?: object) => (
-    <TouchableOpacity onPress={onPress} disabled={loading} style={style}>
+    <PressScale onPress={onPress} disabled={loading} style={style} to={0.97}>
       <Text style={{ color: c.gold, fontSize: 11.5, fontFamily: Fonts.sans, letterSpacing: 0.4 }}>{label}</Text>
-    </TouchableOpacity>
+    </PressScale>
   );
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 30, alignItems: 'center', paddingTop: insets.top + 34, paddingBottom: insets.bottom + 26 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <KeyboardAwareForm
+      style={{ flex: 1, backgroundColor: c.bg }}
+      contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 30, alignItems: 'center', paddingTop: insets.top + 34, paddingBottom: insets.bottom + 26 }}
+    >
         <View style={{ width: 74, height: 74, borderRadius: 37, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.goldSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
           <Icon name="cross" size={28} color={c.gold} strokeWidth={1.4} />
         </View>
@@ -210,14 +210,14 @@ export function AuthScreen() {
             to={0.97}
           >
             <LinearGradient
-              colors={[c.goldBright, c.gold]}
+              colors={[c.hopeBright, c.hope]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ borderRadius: Radii.pill, paddingVertical: 15, alignItems: 'center', marginTop: 20, opacity: loading ? 0.6 : 1 }}
+              style={{ borderRadius: Radii.pill, paddingVertical: 15, alignItems: 'center', marginTop: 20, opacity: loading ? 0.6 : 1, borderWidth: 1, borderColor: c.hopeBorder, ...elev.chip }}
             >
               {loading ? (
-                <ActivityIndicator color={c.onGold} />
+                <ActivityIndicator color={c.onHope} />
               ) : (
-                <Text style={{ color: c.onGold, fontSize: 13.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.2 }}>
+                <Text style={{ color: c.onHope, fontSize: 13.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.2 }}>
                   {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : mode === 'forgot' ? 'Send Code' : 'Reset Password'}
                 </Text>
               )}
@@ -261,7 +261,6 @@ export function AuthScreen() {
             {(mode === 'forgot' || mode === 'reset') && link('Back to sign in', () => reset('signin'))}
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareForm>
   );
 }

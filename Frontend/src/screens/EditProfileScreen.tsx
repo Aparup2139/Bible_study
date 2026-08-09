@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  Alert, Animated, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView,
-  Text, TextInput, TouchableOpacity, View,
+  Alert, Animated, Linking, Modal, ScrollView,
+  Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, PressScale, SerifTitle } from '../components/elegant/Kit';
+import { KeyboardAwareForm } from '../components/elegant/Keyboard';
 
 const SUPPORT_EMAIL = 'aparupghosh85@gmail.com';
 
@@ -52,7 +53,7 @@ interface Props {
 
 export function EditProfileScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
 
@@ -180,7 +181,7 @@ export function EditProfileScreen({ onClose }: Props) {
               </View>
             </PressScale>
             <PressScale onPress={() => void handleSignOut()} to={0.98}>
-              <View style={{ borderWidth: 1, borderColor: 'rgba(224,106,80,0.35)', paddingVertical: 13, borderRadius: Radii.pill, alignItems: 'center' }}>
+              <View style={{ borderWidth: 1, borderColor: 'rgba(230,114,96,0.35)', paddingVertical: 13, borderRadius: Radii.pill, alignItems: 'center' }}>
                 <Text style={{ color: c.live, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>Sign Out</Text>
               </View>
             </PressScale>
@@ -218,29 +219,29 @@ export function EditProfileScreen({ onClose }: Props) {
         return (
           <View style={{ gap: 8 }}>
             {rows.map((row) => (
-              <TouchableOpacity
+              <PressScale
                 key={row.label}
                 onPress={row.onPress}
-                activeOpacity={0.7}
+                to={0.98}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.sm, paddingVertical: 14, paddingHorizontal: 17 }}
               >
                 <View style={{ width: 6, height: 6, backgroundColor: row.danger ? c.live : c.gold, transform: [{ rotate: '45deg' }] }} />
                 <Text style={{ flex: 1, color: row.danger ? c.live : c.ink, fontSize: 13, fontFamily: Fonts.sans, letterSpacing: 0.3 }}>{row.label}</Text>
                 <Icon name="chevronRight" size={13} color={c.ink3} strokeWidth={1.7} />
-              </TouchableOpacity>
+              </PressScale>
             ))}
 
-            <TouchableOpacity
+            <PressScale
               onPress={handleDeleteAccount}
               disabled={deleting}
-              activeOpacity={0.7}
-              style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(224,106,80,0.35)', borderRadius: Radii.sm, paddingVertical: 14, paddingHorizontal: 17 }}
+              to={0.98}
+              style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: 'rgba(230,114,96,0.35)', borderRadius: Radii.sm, paddingVertical: 14, paddingHorizontal: 17 }}
             >
               <View style={{ width: 6, height: 6, backgroundColor: c.live, transform: [{ rotate: '45deg' }] }} />
               <Text style={{ flex: 1, color: c.live, fontSize: 13, fontFamily: Fonts.sans, letterSpacing: 0.3 }}>
                 {deleting ? 'Deleting…' : 'Delete Account'}
               </Text>
-            </TouchableOpacity>
+            </PressScale>
 
             <Text style={{ textAlign: 'right', color: c.ink3, fontSize: 10, paddingTop: 14, letterSpacing: 1, fontFamily: Fonts.sansLight }}>
               v{Constants.expoConfig?.version ?? '1.0.0'}
@@ -252,10 +253,7 @@ export function EditProfileScreen({ onClose }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={{ flex: 1, backgroundColor: c.sheet, paddingTop: insets.top }}>
       {/* success toast */}
       <Animated.View
         pointerEvents="none"
@@ -265,6 +263,7 @@ export function EditProfileScreen({ onClose }: Props) {
           flexDirection: 'row', alignItems: 'center', gap: 9,
           backgroundColor: c.surface2, borderWidth: 1, borderColor: c.hairline,
           borderRadius: Radii.pill, paddingHorizontal: 18, paddingVertical: 10,
+          ...elev.chip,
         }}
       >
         <Icon name="check" size={14} color={c.gold} strokeWidth={1.8} />
@@ -279,20 +278,20 @@ export function EditProfileScreen({ onClose }: Props) {
 
       {/* avatar */}
       <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 18, gap: 11 }}>
-        <TouchableOpacity onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} activeOpacity={0.85}>
-          <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.hairline, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: Fonts.serif, fontSize: 40, color: c.gold }}>
+        <PressScale onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} to={0.96}>
+          <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.hopeSoft, borderWidth: 1, borderColor: c.hopeBorder, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: Fonts.serif, fontSize: 40, color: c.hope }}>
               {(displayName?.trim()?.[0] ?? '?').toUpperCase()}
             </Text>
           </View>
           <LinearGradient
-            colors={[c.goldBright, c.gold]}
+            colors={[c.hopeBright, c.hope]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 3, borderColor: c.bg, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Icon name="camera" size={13} color={c.onGold} strokeWidth={1.7} />
+            <Icon name="camera" size={13} color={c.onHope} strokeWidth={1.7} />
           </LinearGradient>
-        </TouchableOpacity>
+        </PressScale>
         <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>Change Profile Photo</Text>
       </View>
 
@@ -301,32 +300,33 @@ export function EditProfileScreen({ onClose }: Props) {
         {TABS.map((tab) => {
           const on = activeTab === tab.key;
           return (
-            <TouchableOpacity
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.7}
-              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: on ? c.gold : 'transparent' }}
-            >
-              <Text style={{ fontSize: 11.5, fontFamily: Fonts.sansMed, color: on ? c.gold : c.ink3, letterSpacing: 0.6 }}>{tab.label}</Text>
-            </TouchableOpacity>
+            <View key={tab.key} style={{ flex: 1 }}>
+              <PressScale
+                onPress={() => setActiveTab(tab.key)}
+                to={0.98}
+                style={{ paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: on ? c.hope : 'transparent' }}
+              >
+                <Text style={{ fontSize: 11.5, fontFamily: Fonts.sansMed, color: on ? c.hope : c.ink3, letterSpacing: 0.6 }}>{tab.label}</Text>
+              </PressScale>
+            </View>
           );
         })}
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareForm style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingBottom: 120 }}>
         {renderTabContent()}
-      </ScrollView>
+      </KeyboardAwareForm>
 
       {/* save bar */}
       {activeTab !== 'preferences' && (
         <View style={{ borderTopWidth: 1, borderTopColor: c.hairlineSoft, paddingHorizontal: 22, paddingTop: 15, paddingBottom: insets.bottom + 15 }}>
           <PressScale onPress={handleSave} to={0.97}>
             <LinearGradient
-              colors={[c.goldBright, c.gold]}
+              colors={[c.hopeBright, c.hope]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ paddingVertical: 15, borderRadius: Radii.pill, alignItems: 'center' }}
+              style={{ paddingVertical: 15, borderRadius: Radii.pill, alignItems: 'center', borderWidth: 1, borderColor: c.hopeBorder, ...elev.chip }}
             >
-              <Text style={{ color: c.onGold, fontSize: 13.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.2 }}>Save Changes</Text>
+              <Text style={{ color: c.onHope, fontSize: 13.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.2 }}>Save Changes</Text>
             </LinearGradient>
           </PressScale>
         </View>
@@ -356,6 +356,6 @@ export function EditProfileScreen({ onClose }: Props) {
           </View>
         )}
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

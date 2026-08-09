@@ -83,6 +83,8 @@ export async function signInWithGoogle(): Promise<OAuthResult> {
     }
     await GoogleSignin.hasPlayServices();
     const result = await GoogleSignin.signIn();
+    // v14+ reports cancellation as a result, not an exception.
+    if (result?.type === 'cancelled') return { ok: false, cancelled: true };
     // The lib has returned the token at result.idToken (v13-) or result.data.idToken (v14+).
     const idToken = result?.idToken ?? result?.data?.idToken;
     if (!idToken) return { ok: false, error: 'No ID token returned by Google.' };

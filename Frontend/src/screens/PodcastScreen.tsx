@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,6 +15,8 @@ import { useTheme } from '../theme/ThemeContext';
 import { Fonts, Radii } from '../theme/elegant';
 import { Icon, type IconName } from '../components/elegant/Icons';
 import { GlassCircle, GoldPill, Medallion, PressScale, SerifTitle } from '../components/elegant/Kit';
+import { StickyInputBar } from '../components/elegant/Keyboard';
+import { Glass } from '../components/elegant/Glass';
 import type { PodcastEpisode, PodcastChannel, PodcastCategory, PodcastTab } from '../types';
 
 /** MIME types the podcast-audio bucket accepts. */
@@ -61,7 +63,7 @@ function formatRelativeDate(iso: string): string {
 }
 
 function EpisodeCard({ episode }: { episode: PodcastEpisode }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const [saved, setSaved] = useState(episode.isSaved);
   const toggleSave = useToggleSave();
   const currentlyPlaying = usePodcastStore((s) => s.currentlyPlaying);
@@ -81,7 +83,7 @@ function EpisodeCard({ episode }: { episode: PodcastEpisode }) {
   };
 
   return (
-    <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, padding: 13, marginBottom: 11, flexDirection: 'row', gap: 13 }}>
+    <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, padding: 13, marginBottom: 11, flexDirection: 'row', gap: 13, ...elev.card }}>
       <View style={{ width: 64, height: 64, borderRadius: Radii.sm, backgroundColor: c.goldSoft, borderWidth: 1, borderColor: c.hairlineSoft, alignItems: 'center', justifyContent: 'center' }}>
         <Icon name={EP_ICON[episode.thumbnailEmoji] ?? 'mic'} size={22} color={c.gold} />
       </View>
@@ -106,8 +108,8 @@ function EpisodeCard({ episode }: { episode: PodcastEpisode }) {
             fontSize={10.5}
           />
           <PressScale onPress={onSave} to={0.88}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: saved ? c.gold : c.hairlineSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="star" size={12} color={saved ? c.gold : c.ink3} strokeWidth={1.5} />
+            <View style={{ width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: saved ? c.hopeBorder : c.hairlineSoft, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="star" size={12} color={saved ? c.hope : c.ink3} strokeWidth={1.5} />
             </View>
           </PressScale>
         </View>
@@ -117,7 +119,7 @@ function EpisodeCard({ episode }: { episode: PodcastEpisode }) {
 }
 
 function PlayerBar() {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const episode = usePodcastStore((s) => s.currentlyPlaying);
   const isPlaying = usePodcastStore((s) => s.isPlaying);
   const position = usePodcastStore((s) => s.playbackPosition);
@@ -140,20 +142,20 @@ function PlayerBar() {
           <Text numberOfLines={1} style={{ fontSize: 10.5, color: c.ink3, fontFamily: Fonts.sansLight }}>{episode.channelName}</Text>
         </View>
         <PressScale onPress={() => togglePlayPause()} to={0.88}>
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center', paddingLeft: isPlaying ? 0 : 2 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center', paddingLeft: isPlaying ? 0 : 2, ...elev.chip }}>
             <Icon name={isPlaying ? 'pause' : 'play'} size={12} color={c.onGold} />
           </View>
         </PressScale>
-        <TouchableOpacity onPress={() => stopPlayback()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <PressScale onPress={() => stopPlayback()} to={0.88}>
           <Icon name="x" size={13} color={c.ink3} strokeWidth={1.7} />
-        </TouchableOpacity>
+        </PressScale>
       </View>
     </View>
   );
 }
 
 function ChannelCard({ channel }: { channel: PodcastChannel }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const [subscribed, setSubscribed] = useState(channel.isSubscribed);
   const toggleSubscribe = useToggleSubscribe();
 
@@ -164,7 +166,7 @@ function ChannelCard({ channel }: { channel: PodcastChannel }) {
   };
 
   return (
-    <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 11, flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+    <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 11, flexDirection: 'row', alignItems: 'center', gap: 13, ...elev.card }}>
       <Medallion initial={channel.name[0]} size={50} />
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <Text numberOfLines={1} style={{ fontSize: 13.5, fontFamily: Fonts.sansMed, color: c.ink, letterSpacing: 0.2 }}>{channel.name}</Text>
@@ -186,10 +188,10 @@ function ChannelCard({ channel }: { channel: PodcastChannel }) {
 }
 
 function CategoryCard({ category }: { category: PodcastCategory }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
     <PressScale onPress={() => Alert.alert(category.name, `${category.showCount} shows`)} to={0.97}>
-      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', gap: 8 }}>
+      <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.lg, paddingVertical: 18, paddingHorizontal: 12, alignItems: 'center', gap: 8, ...elev.card }}>
         <Medallion initial={category.name[0]} size={44} />
         <Text style={{ fontSize: 12.5, fontFamily: Fonts.sansMed, color: c.ink, letterSpacing: 0.3 }}>{category.name}</Text>
         <Text style={{ fontSize: 10, color: c.ink3, fontFamily: Fonts.sansLight, letterSpacing: 0.6 }}>{category.showCount} shows</Text>
@@ -219,8 +221,7 @@ interface PickedAudio {
 }
 
 function UploadModal({ visible, channels, onClose }: { visible: boolean; channels: PodcastChannel[]; onClose: () => void }) {
-  const { c } = useTheme();
-  const insets = useSafeAreaInsets();
+  const { c, elev, isDark } = useTheme();
   const [title, setTitle] = useState('');
   const [channelId, setChannelId] = useState<string | null>(null);
   const [picked, setPicked] = useState<PickedAudio | null>(null);
@@ -258,8 +259,11 @@ function UploadModal({ visible, channels, onClose }: { visible: boolean; channel
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(5,4,2,0.5)', justifyContent: 'flex-end' }}>
-        <View style={{ backgroundColor: c.sheet, borderTopWidth: 1, borderTopColor: c.hairline, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 22, paddingTop: 12, paddingBottom: insets.bottom + 22, gap: 13, maxHeight: '85%' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(6,5,5,0.5)', justifyContent: 'flex-end' }}>
+        {/* StickyInputBar keeps the sheet's inputs riding the keyboard — replaces KeyboardAvoidingView. */}
+        <StickyInputBar style={{ maxHeight: '85%' }}>
+          <Glass intensity={28} tint={isDark ? 'dark' : 'light'} style={{ backgroundColor: c.sheet, borderTopWidth: 1, borderTopColor: c.hairline, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 10, gap: 13 }}>
           <View style={{ alignItems: 'center' }}>
             <View style={{ width: 38, height: 4.5, borderRadius: 3, backgroundColor: c.grabber }} />
           </View>
@@ -283,34 +287,32 @@ function UploadModal({ visible, channels, onClose }: { visible: boolean; channel
             {channels.map((ch) => {
               const on = channelId === ch.id;
               return (
-                <TouchableOpacity
+                <PressScale
                   key={ch.id}
                   onPress={() => setChannelId(ch.id)}
-                  activeOpacity={0.8}
                   style={{
-                    borderWidth: 1, borderColor: on ? c.gold : c.hairlineSoft,
-                    backgroundColor: on ? c.goldSoft : c.surface,
+                    borderWidth: 1, borderColor: on ? c.hope : c.hairlineSoft,
+                    backgroundColor: on ? c.hopeSoft : c.surface,
                     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radii.pill,
                   }}
                 >
-                  <Text style={{ fontSize: 11, color: on ? c.gold : c.ink2, fontFamily: on ? Fonts.sansMed : Fonts.sans, letterSpacing: 0.4 }}>
+                  <Text style={{ fontSize: 11, color: on ? c.hope : c.ink2, fontFamily: on ? Fonts.sansMed : Fonts.sans, letterSpacing: 0.4 }}>
                     {ch.name}
                   </Text>
-                </TouchableOpacity>
+                </PressScale>
               );
             })}
           </ScrollView>
 
           <Text style={label}>Audio file</Text>
-          <TouchableOpacity
+          <PressScale
             onPress={onPickFile}
-            activeOpacity={0.8}
             style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: c.hairline, borderRadius: Radii.sm, paddingVertical: 15, alignItems: 'center' }}
           >
             <Text style={{ color: c.gold, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.4 }}>
               {picked ? picked.name : 'Choose an mp3'}
             </Text>
-          </TouchableOpacity>
+          </PressScale>
           {picked && picked.durationSeconds > 0 && (
             <Text style={{ fontSize: 11, color: c.ink3, fontFamily: Fonts.sansLight }}>
               {Math.round(picked.durationSeconds / 60)} min
@@ -318,15 +320,17 @@ function UploadModal({ visible, channels, onClose }: { visible: boolean; channel
           )}
 
           <PressScale onPress={onSubmit} disabled={!canSubmit} to={0.97}>
-            <View style={{ backgroundColor: c.gold, borderRadius: Radii.pill, paddingVertical: 14, alignItems: 'center', opacity: canSubmit ? 1 : 0.45, marginTop: 6 }}>
+            <View style={{ backgroundColor: c.hope, borderWidth: 1, borderColor: c.hopeBorder, borderRadius: Radii.pill, paddingVertical: 14, alignItems: 'center', opacity: canSubmit ? 1 : 0.45, marginTop: 6, ...elev.chip }}>
               {upload.isPending ? (
-                <ActivityIndicator color={c.onGold} />
+                <ActivityIndicator color={c.onHope} />
               ) : (
-                <Text style={{ color: c.onGold, fontSize: 13, fontFamily: Fonts.sansSemi, letterSpacing: 0.8 }}>Post episode</Text>
+                <Text style={{ color: c.onHope, fontSize: 13, fontFamily: Fonts.sansSemi, letterSpacing: 0.8 }}>Post episode</Text>
               )}
             </View>
           </PressScale>
-        </View>
+          </View>
+          </Glass>
+        </StickyInputBar>
       </View>
     </Modal>
   );
@@ -438,16 +442,16 @@ export function PodcastScreen({ onClose }: Props) {
           {TABS.map((tab) => {
             const on = activeTab === tab.key;
             return (
-              <TouchableOpacity
+              <PressScale
                 key={tab.key}
                 onPress={() => setActiveTab(tab.key)}
-                activeOpacity={0.7}
-                style={{ paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 2, borderBottomColor: on ? c.gold : 'transparent' }}
+                to={0.96}
+                style={{ paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 2, borderBottomColor: on ? c.hope : 'transparent' }}
               >
-                <Text style={{ fontSize: 12, fontFamily: Fonts.sansMed, color: on ? c.gold : c.ink3, letterSpacing: 0.5 }}>
+                <Text style={{ fontSize: 12, fontFamily: Fonts.sansMed, color: on ? c.hope : c.ink3, letterSpacing: 0.5 }}>
                   {tab.label}
                 </Text>
-              </TouchableOpacity>
+              </PressScale>
             );
           })}
         </ScrollView>

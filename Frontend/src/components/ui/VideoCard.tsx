@@ -1,6 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PressScale } from '../elegant/Kit';
 import { Colors, Typography, BorderRadius, Spacing } from '../../theme';
 import type { LiveStream } from '../../types';
 
@@ -16,9 +17,8 @@ function formatViewerCount(n: number): string {
 
 export function VideoCard({ stream, onPress }: Props) {
   return (
-    <TouchableOpacity
+    <PressScale
       style={styles.card}
-      activeOpacity={0.85}
       onPress={() => onPress(stream)}
     >
       <LinearGradient
@@ -34,7 +34,7 @@ export function VideoCard({ stream, onPress }: Props) {
         <Text style={styles.title} numberOfLines={1}>{stream.title}</Text>
         <Text style={styles.meta}>{formatViewerCount(stream.viewerCount)}</Text>
       </View>
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 

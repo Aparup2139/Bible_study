@@ -2,7 +2,8 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
-import { DefaultThumbGradient, Fonts, Radii, ThumbGradients } from '../../theme/elegant';
+import { DefaultThumbGradient, Deep, Fonts, Radii, ThumbGradients } from '../../theme/elegant';
+import { Glass } from './Glass';
 import { Icon, type IconName } from './Icons';
 import { PressScale, PulseDot } from './Kit';
 import type { LiveStream } from '../../types';
@@ -24,9 +25,9 @@ interface Props {
   onPress: (stream: LiveStream) => void;
 }
 
-/** Streaming Now card — deep gradient thumb, gold emblem, glass chips. */
+/** Streaming Now card — deep gradient thumb, rose emblem, glass chips. */
 export function VideoCard({ stream, onPress }: Props) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const grad = ThumbGradients[stream.thumbnailEmoji] ?? DefaultThumbGradient;
   const icon = EMOJI_ICON[stream.thumbnailEmoji] ?? 'book';
 
@@ -36,33 +37,38 @@ export function VideoCard({ stream, onPress }: Props) {
         style={{
           backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft,
           borderRadius: Radii.xl, overflow: 'hidden',
+          ...elev.card,
         }}
       >
         <LinearGradient colors={[...grad]} start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }} style={{ height: 112, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={icon} size={30} color="#E8CB8F" strokeWidth={1.4} />
-          <View
+          <Icon name={icon} size={30} color={Deep.goldOnDeep} strokeWidth={1.4} />
+          <Glass
+            tint="dark"
+            intensity={20}
             style={{
               position: 'absolute', top: 9, left: 9,
               flexDirection: 'row', alignItems: 'center', gap: 5,
-              backgroundColor: 'rgba(12,9,6,0.62)',
-              borderWidth: 1, borderColor: 'rgba(232,203,143,0.22)',
+              backgroundColor: 'rgba(17,14,14,0.36)',
+              borderWidth: 1, borderColor: 'rgba(242,199,190,0.22)',
               paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
             }}
           >
-            <PulseDot color="#E06A50" size={4.5} />
-            <Text style={{ color: '#EEDFBE', fontSize: 7.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.8 }}>LIVE</Text>
-          </View>
-          <View
+            <PulseDot color={Deep.liveOnDeep} size={4.5} />
+            <Text style={{ color: Deep.goldOnDeep, fontSize: 7.5, fontFamily: Fonts.sansSemi, letterSpacing: 1.8 }}>LIVE</Text>
+          </Glass>
+          <Glass
+            tint="dark"
+            intensity={20}
             style={{
               position: 'absolute', bottom: 9, right: 9,
               width: 30, height: 30, borderRadius: 15,
-              backgroundColor: 'rgba(12,9,6,0.58)',
-              borderWidth: 1, borderColor: 'rgba(232,203,143,0.3)',
+              backgroundColor: 'rgba(17,14,14,0.34)',
+              borderWidth: 1, borderColor: Deep.chipBorderOnDeep,
               alignItems: 'center', justifyContent: 'center', paddingLeft: 2,
             }}
           >
-            <Icon name="play" size={11} color="#E8CB8F" />
-          </View>
+            <Icon name="play" size={11} color={Deep.goldOnDeep} />
+          </Glass>
         </LinearGradient>
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 13, gap: 5 }}>
           <Text numberOfLines={1} style={{ fontSize: 13.5, fontFamily: Fonts.sansMed, color: c.ink, letterSpacing: 0.2 }}>

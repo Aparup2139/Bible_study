@@ -8,10 +8,11 @@ import { useGoLive, useEndStream, useRtcToken, useStreamDetail } from '../hooks/
 import { useLiveChat } from '../hooks/useLiveChat';
 import { getAgora, getEngine, destroyEngine, isAgoraAvailable } from '../services/agoraEngine';
 import { useTheme } from '../theme/ThemeContext';
-import { Fonts, Radii } from '../theme/elegant';
+import { Deep, Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, LiveBadge, PressScale } from '../components/elegant/Kit';
 import { ChatFeed } from '../components/elegant/LiveChat';
+import { Glass } from '../components/elegant/Glass';
 
 interface Props {
   onClose: () => void;
@@ -47,7 +48,7 @@ function CenterMessage({ icon, heading, sub }: { icon: 'video' | 'x'; heading: s
 
 export function LiveStreamScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const profile = useAppStore((s) => s.profile);
   const goLive = useGoLive();
   const endStream = useEndStream();
@@ -185,7 +186,7 @@ export function LiveStreamScreen({ onClose }: Props) {
   const isBroadcasting = status === 'live' || status === 'connecting';
 
   return (
-    <View style={{ flex: 1, backgroundColor: isBroadcasting ? '#0A0806' : c.sheet, paddingTop: insets.top + 12 }}>
+    <View style={{ flex: 1, backgroundColor: isBroadcasting ? '#100E0D' : c.sheet, paddingTop: insets.top + 12 }}>
       {header(status === 'live')}
 
       {isBroadcasting && engineReady ? (
@@ -209,10 +210,12 @@ export function LiveStreamScreen({ onClose }: Props) {
       {isBroadcasting && (
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: insets.bottom + 130, paddingHorizontal: 22, zIndex: 8, gap: 10 }}>
           <ChatFeed messages={messages} />
-          <View style={{ backgroundColor: 'rgba(12,9,6,0.62)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.22)', borderRadius: Radii.md, paddingVertical: 14, paddingHorizontal: 16 }}>
-            <Text style={{ color: '#EEDFBE', fontSize: 12, fontFamily: Fonts.sans, letterSpacing: 0.4 }}>
-              {status === 'connecting' ? 'Starting…' : `${viewers} watching · live in the BibleWay feed`}
-            </Text>
+          <View style={{ borderRadius: Radii.md, ...elev.card }}>
+            <Glass intensity={24} style={{ backgroundColor: 'rgba(17,14,14,0.36)', borderWidth: 1, borderColor: 'rgba(242,199,190,0.22)', borderRadius: Radii.md, paddingVertical: 14, paddingHorizontal: 16 }}>
+              <Text style={{ color: Deep.goldOnDeep, fontSize: 12, fontFamily: Fonts.sans, letterSpacing: 0.4 }}>
+                {status === 'connecting' ? 'Starting…' : `${viewers} watching · live in the BibleWay feed`}
+              </Text>
+            </Glass>
           </View>
         </View>
       )}
@@ -221,20 +224,22 @@ export function LiveStreamScreen({ onClose }: Props) {
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', paddingBottom: insets.bottom + 24, zIndex: 10 }}>
         {status === 'idle' || status === 'error' ? (
           <PressScale onPress={handleGoLive} to={0.92}>
-            <View style={{ shadowColor: c.gold, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } }}>
+            <View style={{ shadowColor: c.hope, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } }}>
               <LinearGradient
-                colors={[c.goldBright, c.gold]}
+                colors={[c.hopeBright, c.hope]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', borderWidth: 6, borderColor: c.goldSoft }}
+                style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', borderWidth: 6, borderColor: c.hopeSoft, ...elev.chip }}
               >
-                <Text style={{ color: c.onGold, fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>GO LIVE</Text>
+                <Text style={{ color: c.onHope, fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>GO LIVE</Text>
               </LinearGradient>
             </View>
           </PressScale>
         ) : (
           <PressScale onPress={handleEnd} to={0.92}>
-            <View style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(14,11,7,0.6)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.4)' }}>
-              <Text style={{ color: '#EEDFBE', fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>END</Text>
+            <View style={{ borderRadius: 43, ...elev.chip }}>
+              <Glass intensity={22} style={{ width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,14,14,0.36)', borderWidth: 1, borderColor: 'rgba(242,199,190,0.4)' }}>
+                <Text style={{ color: Deep.goldOnDeep, fontSize: 10.5, fontFamily: Fonts.sansSemi, letterSpacing: 2 }}>END</Text>
+              </Glass>
             </View>
           </PressScale>
         )}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
 import { useAppStore } from '../store/useAppStore';
@@ -7,10 +7,11 @@ import { useRtcToken, useStreamDetail, joinViewer, leaveViewer } from '../hooks/
 import { useLiveChat } from '../hooks/useLiveChat';
 import { getAgora, getEngine, destroyEngine, isAgoraAvailable } from '../services/agoraEngine';
 import { useTheme } from '../theme/ThemeContext';
-import { Fonts, Radii } from '../theme/elegant';
+import { Deep, Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, GoldPill, PulseDot } from '../components/elegant/Kit';
 import { ChatFeed, ChatInputBar } from '../components/elegant/LiveChat';
+import { Glass } from '../components/elegant/Glass';
 
 interface Props {
   streamId: string;
@@ -18,16 +19,19 @@ interface Props {
 }
 
 function Header({ onClose, title, live }: { onClose: () => void; title: string; live?: boolean }) {
+  const { elev } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, zIndex: 10 }}>
       <GlassCircle icon="x" onPress={onClose} onDeep />
-      <Text numberOfLines={1} style={{ flex: 1, textAlign: 'center', paddingHorizontal: 8, fontFamily: Fonts.serif, fontSize: 20, color: '#F5EFDF', letterSpacing: 0.4 }}>
+      <Text numberOfLines={1} style={{ flex: 1, textAlign: 'center', paddingHorizontal: 8, fontFamily: Fonts.serif, fontSize: 20, color: Deep.onDeep, letterSpacing: 0.4 }}>
         {title}
       </Text>
       {live ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(14,11,7,0.55)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.32)', paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 }}>
-          <PulseDot color="#E06A50" size={6} />
-          <Text style={{ color: '#EEDFBE', fontSize: 9.5, fontFamily: Fonts.sansSemi, letterSpacing: 2.2 }}>LIVE</Text>
+        <View style={{ borderRadius: 999, ...elev.chip }}>
+          <Glass intensity={20} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Deep.chipOnDeep, borderWidth: 1, borderColor: Deep.chipBorderOnDeep, paddingHorizontal: 11, paddingVertical: 5, borderRadius: 999 }}>
+            <PulseDot color={Deep.liveOnDeep} size={6} />
+            <Text style={{ color: Deep.goldOnDeep, fontSize: 9.5, fontFamily: Fonts.sansSemi, letterSpacing: 2.2 }}>LIVE</Text>
+          </Glass>
         </View>
       ) : (
         <View style={{ width: 38 }} />
@@ -39,8 +43,8 @@ function Header({ onClose, title, live }: { onClose: () => void; title: string; 
 function CenterMessage({ heading, sub, children }: { heading: string; sub: string; children?: React.ReactNode }) {
   return (
     <View style={styles.center}>
-      <Text style={{ fontFamily: Fonts.serif, fontSize: 25, color: '#F5EFDF', textAlign: 'center' }}>{heading}</Text>
-      <Text style={{ color: 'rgba(242,234,218,0.72)', fontSize: 13, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 22, paddingHorizontal: 34 }}>
+      <Text style={{ fontFamily: Fonts.serif, fontSize: 25, color: Deep.onDeep, textAlign: 'center' }}>{heading}</Text>
+      <Text style={{ color: Deep.onDeepSoft, fontSize: 13, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 22, paddingHorizontal: 34 }}>
         {sub}
       </Text>
       {children}
@@ -54,7 +58,7 @@ function CenterMessage({ heading, sub, children }: { heading: string; sub: strin
  */
 export function LiveViewerScreen({ streamId, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const rtcToken = useRtcToken();
   const profile = useAppStore((s) => s.profile);
   const { messages, send } = useLiveChat(streamId, profile.displayName);
@@ -173,14 +177,14 @@ export function LiveViewerScreen({ streamId, onClose }: Props) {
 
       {phase === 'connecting' && (
         <View style={styles.center}>
-          <ActivityIndicator color="#C9A257" size="large" />
+          <ActivityIndicator color={c.gold} size="large" />
           <Text style={styles.waiting}>Joining stream…</Text>
         </View>
       )}
 
       {phase === 'watching' && hostUid == null && (
         <View style={styles.center}>
-          <ActivityIndicator color="#C9A257" size="large" />
+          <ActivityIndicator color={c.gold} size="large" />
           <Text style={styles.waiting}>Waiting for the host's video…</Text>
         </View>
       )}
@@ -196,33 +200,33 @@ export function LiveViewerScreen({ streamId, onClose }: Props) {
       {phase === 'error' && <CenterMessage heading="Couldn't join" sub={error} />}
 
       {phase === 'watching' && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 8 }}
-        >
+        <View style={{ flex: 1 }}>
           <View style={{ paddingHorizontal: 20, gap: 10 }}>
             <ChatFeed messages={messages} />
-            <View style={{ backgroundColor: 'rgba(12,9,6,0.62)', borderWidth: 1, borderColor: 'rgba(232,203,143,0.22)', borderRadius: Radii.xl, paddingVertical: 12, paddingHorizontal: 18, gap: 4 }}>
-              <Text numberOfLines={1} style={{ fontFamily: Fonts.serif, color: '#F5EFDF', fontSize: 18, letterSpacing: 0.3 }}>
-                {detail?.title ?? 'Live stream'}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon name="eye" size={12} color="#E8CB8F" strokeWidth={1.6} />
-                <Text style={{ color: 'rgba(242,234,218,0.72)', fontSize: 11.5, fontFamily: Fonts.sansLight, letterSpacing: 0.5 }}>
-                  {detail?.viewerCount ?? 0} watching
+            <View style={{ borderRadius: Radii.xl, ...elev.card }}>
+              <Glass intensity={24} style={{ backgroundColor: 'rgba(17,14,14,0.36)', borderWidth: 1, borderColor: 'rgba(242,199,190,0.22)', borderRadius: Radii.xl, paddingVertical: 12, paddingHorizontal: 18, gap: 4 }}>
+                <Text numberOfLines={1} style={{ fontFamily: Fonts.serif, color: Deep.onDeep, fontSize: 18, letterSpacing: 0.3 }}>
+                  {detail?.title ?? 'Live stream'}
                 </Text>
-              </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="eye" size={12} color={Deep.goldOnDeep} strokeWidth={1.6} />
+                  <Text style={{ color: Deep.onDeepSoft, fontSize: 11.5, fontFamily: Fonts.sansLight, letterSpacing: 0.5 }}>
+                    {detail?.viewerCount ?? 0} watching
+                  </Text>
+                </View>
+              </Glass>
             </View>
           </View>
-          <ChatInputBar onSend={send} bottomInset={insets.bottom} />
-        </KeyboardAvoidingView>
+          {/* ChatInputBar rides the keyboard itself via StickyInputBar — no KeyboardAvoidingView. */}
+          <ChatInputBar onSend={send} />
+        </View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0806' },
+  container: { flex: 1, backgroundColor: '#100E0D' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 13, zIndex: 5 },
-  waiting: { color: 'rgba(242,234,218,0.72)', fontSize: 13, fontFamily: Fonts.sansLight },
+  waiting: { color: Deep.onDeepSoft, fontSize: 13, fontFamily: Fonts.sansLight },
 });

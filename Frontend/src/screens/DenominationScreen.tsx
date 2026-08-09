@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DENOMINATIONS } from '../content/denominations';
@@ -38,9 +38,9 @@ interface Props {
 }
 
 function StatTile({ value, label }: { value: string; label: string }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
-    <View style={{ width: '48.5%', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, paddingVertical: 13, paddingHorizontal: 10, borderRadius: Radii.sm, alignItems: 'center', gap: 3 }}>
+    <View style={{ width: '48.5%', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, paddingVertical: 13, paddingHorizontal: 10, borderRadius: Radii.sm, alignItems: 'center', gap: 3, ...elev.card }}>
       <Text numberOfLines={1} style={{ fontFamily: Fonts.serif, fontSize: 19, color: c.gold }}>{value}</Text>
       <Text style={{ fontSize: 8, color: c.ink3, textTransform: 'uppercase', letterSpacing: 1.8, fontFamily: Fonts.sans, textAlign: 'center' }}>{label}</Text>
     </View>
@@ -49,7 +49,7 @@ function StatTile({ value, label }: { value: string; label: string }) {
 
 export function DenominationScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const denominations = DENOMINATIONS;
   const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
@@ -103,7 +103,7 @@ export function DenominationScreen({ onClose }: Props) {
         {/* intro banner */}
         <View style={{ marginHorizontal: 20, marginTop: 8, borderRadius: Radii.xxl + 2, overflow: 'hidden', borderWidth: 1, borderColor: c.hairlineSoft }}>
           <LinearGradient colors={[...Deep.bannerStops]} style={{ paddingVertical: 28, paddingHorizontal: 24, alignItems: 'center', gap: 10 }}>
-            <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(232,203,143,0.4)', backgroundColor: 'rgba(201,162,87,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: 'rgba(242,199,190,0.4)', backgroundColor: 'rgba(235,178,168,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
               <Icon name="church" size={25} color={Deep.goldOnDeep} strokeWidth={1.4} />
             </View>
             <Text style={{ fontFamily: Fonts.serif, fontSize: 23, color: Deep.onDeep, textAlign: 'center', lineHeight: 29 }}>
@@ -119,7 +119,7 @@ export function DenominationScreen({ onClose }: Props) {
         <View style={{ paddingHorizontal: 20, gap: 10 }}>
           <SectionLabel>Select a denomination</SectionLabel>
           <PressScale onPress={() => setIsPickerOpen((o) => !o)} to={0.99}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, paddingVertical: 15, paddingHorizontal: 17 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, paddingVertical: 15, paddingHorizontal: 17, ...elev.card }}>
               <Text style={{ color: selectedOption ? c.ink : c.ink3, fontSize: 13.5, fontFamily: Fonts.sans, flex: 1, letterSpacing: 0.2 }}>
                 {selectedOption ? selectedOption.label : 'Select a denomination'}
               </Text>
@@ -140,22 +140,22 @@ export function DenominationScreen({ onClose }: Props) {
                     {opts.map((opt) => {
                       const sel = selectedId === opt.value;
                       return (
-                        <TouchableOpacity
+                        <PressScale
                           key={opt.value}
                           onPress={() => handleSelect(opt.value)}
-                          activeOpacity={0.7}
+                          to={0.98}
                           style={{
                             flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                             paddingHorizontal: 17, paddingVertical: 13,
                             borderBottomWidth: 1, borderBottomColor: c.hairlineSoft,
-                            backgroundColor: sel ? c.goldSoft : 'transparent',
+                            backgroundColor: sel ? c.hopeSoft : 'transparent',
                           }}
                         >
-                          <Text style={{ fontSize: 13.5, color: sel ? c.gold : c.ink, flex: 1, fontFamily: sel ? Fonts.sansMed : Fonts.sansLight, letterSpacing: 0.2 }}>
+                          <Text style={{ fontSize: 13.5, color: sel ? c.hope : c.ink, flex: 1, fontFamily: sel ? Fonts.sansMed : Fonts.sansLight, letterSpacing: 0.2 }}>
                             {opt.label}
                           </Text>
-                          {sel && <Icon name="check" size={14} color={c.gold} strokeWidth={1.8} />}
-                        </TouchableOpacity>
+                          {sel && <Icon name="check" size={14} color={c.hope} strokeWidth={1.8} />}
+                        </PressScale>
                       );
                     })}
                   </View>
@@ -167,7 +167,7 @@ export function DenominationScreen({ onClose }: Props) {
 
         {/* info panel */}
         {info && (
-          <View style={{ marginHorizontal: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.xxl, paddingVertical: 22, paddingHorizontal: 20, gap: 14 }}>
+          <View style={{ marginHorizontal: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.xxl, paddingVertical: 22, paddingHorizontal: 20, gap: 14, ...elev.card }}>
             <Text style={{ fontFamily: Fonts.serif, fontSize: 22, color: c.ink, letterSpacing: 0.3 }}>{info.name}</Text>
             {!!info.description && (
               <Text style={{ fontSize: 12.5, color: c.ink2, lineHeight: 22, fontFamily: Fonts.sansLight, letterSpacing: 0.2 }}>{info.description}</Text>
@@ -184,11 +184,11 @@ export function DenominationScreen({ onClose }: Props) {
 
             <PressScale onPress={() => Alert.alert('Joined!', `You've joined the ${info.name} community.`)} to={0.97}>
               <LinearGradient
-                colors={[c.goldBright, c.gold]}
+                colors={[c.hopeBright, c.hope]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ paddingVertical: 14, borderRadius: Radii.pill, alignItems: 'center' }}
+                style={{ paddingVertical: 14, borderRadius: Radii.pill, alignItems: 'center', borderWidth: 1, borderColor: c.hopeBorder, ...elev.chip }}
               >
-                <Text style={{ color: c.onGold, fontSize: 12.5, fontFamily: Fonts.sansSemi, letterSpacing: 1 }}>Join this Community</Text>
+                <Text style={{ color: c.onHope, fontSize: 12.5, fontFamily: Fonts.sansSemi, letterSpacing: 1 }}>Join this Community</Text>
               </LinearGradient>
             </PressScale>
           </View>

@@ -6,6 +6,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { Deep, Fonts } from '../../theme/elegant';
 import { Icon } from './Icons';
 import { GlassCircle, LiveBadge, PressScale } from './Kit';
+import { Glass } from './Glass';
 
 const { width } = Dimensions.get('window');
 const HERO_HEIGHT = 264;
@@ -18,11 +19,11 @@ interface Props {
 
 /**
  * The live-video hero. Deep "cathedral dusk" tones in BOTH themes — video is
- * dark content — with glass overlays, a floating gold emblem, wordmark,
+ * dark content — with glass overlays, a floating rose emblem, wordmark,
  * theme toggle and avatar. Drop-in replacement for the old VideoPlayer.
  */
 export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: Props) {
-  const { c, isDark, toggle } = useTheme();
+  const { c, isDark, toggle, elev } = useTheme();
   const float = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: 
 
   return (
     <View style={{ width: '100%', height: HERO_HEIGHT, overflow: 'hidden' }}>
-      {/* deep gradient + gold candle-glow */}
+      {/* deep gradient + rose dawn-glow */}
       <LinearGradient
         colors={[...Deep.heroStops]}
         locations={[...Deep.heroLocations]}
@@ -50,8 +51,8 @@ export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: 
       <Svg width={width} height={HERO_HEIGHT} style={{ position: 'absolute' }}>
         <Defs>
           <RadialGradient id="glow" cx="50%" cy="112%" rx="62%" ry="95%">
-            <Stop offset="0" stopColor="#C9A257" stopOpacity={0.5} />
-            <Stop offset="1" stopColor="#C9A257" stopOpacity={0} />
+            <Stop offset="0" stopColor="#F4C4BA" stopOpacity={0.5} />
+            <Stop offset="1" stopColor="#F4C4BA" stopOpacity={0} />
           </RadialGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={HERO_HEIGHT} fill="url(#glow)" />
@@ -63,10 +64,10 @@ export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: 
           style={{
             transform: [{ translateY }],
             width: 76, height: 76, borderRadius: 38,
-            borderWidth: 1, borderColor: 'rgba(232,203,143,0.4)',
-            backgroundColor: 'rgba(201,162,87,0.14)',
+            borderWidth: 1, borderColor: 'rgba(242,199,190,0.4)',
+            backgroundColor: 'rgba(235,178,168,0.14)',
             alignItems: 'center', justifyContent: 'center',
-            shadowColor: '#C9A257', shadowOpacity: 0.5, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
+            shadowColor: '#EDB4AA', shadowOpacity: 0.5, shadowRadius: 22, shadowOffset: { width: 0, height: 0 },
           }}
         >
           <Icon name="book" size={34} color={Deep.goldOnDeep} strokeWidth={1.4} />
@@ -90,15 +91,19 @@ export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: 
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <GlassCircle icon={isDark ? 'sun' : 'moon'} onPress={toggle} onDeep iconSize={17} />
           <PressScale onPress={onAvatarPress} to={0.88}>
-            <View
-              style={{
-                width: 38, height: 38, borderRadius: 19,
-                backgroundColor: 'rgba(14,11,7,0.55)',
-                borderWidth: 1, borderColor: 'rgba(232,203,143,0.5)',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontFamily: Fonts.serif, color: Deep.goldOnDeep, fontSize: 17 }}>{initial}</Text>
+            {/* shadow on outer wrapper; Glass clips the blur to the circle */}
+            <View style={{ borderRadius: 19, ...elev.chip }}>
+              <Glass
+                intensity={22}
+                style={{
+                  width: 38, height: 38, borderRadius: 19,
+                  backgroundColor: Deep.chipOnDeep,
+                  borderWidth: 1, borderColor: 'rgba(242,199,190,0.5)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontFamily: Fonts.serif, color: Deep.goldOnDeep, fontSize: 17 }}>{initial}</Text>
+              </Glass>
             </View>
           </PressScale>
         </View>
@@ -106,18 +111,21 @@ export function VideoHero({ onAvatarPress, initial = '?', viewerCount = 1248 }: 
 
       {/* bottom watching pill */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, flexDirection: 'row' }}>
-        <View
-          style={{
-            flexDirection: 'row', alignItems: 'center', gap: 7,
-            backgroundColor: 'rgba(14,11,7,0.58)',
-            borderWidth: 1, borderColor: 'rgba(232,203,143,0.24)',
-            paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999,
-          }}
-        >
-          <Icon name="eye" size={13} color={Deep.goldOnDeep} strokeWidth={1.6} />
-          <Text style={{ color: '#EEDFBE', fontSize: 11, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>
-            {formatted} watching
-          </Text>
+        <View style={{ borderRadius: 999, ...elev.chip }}>
+          <Glass
+            intensity={20}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 7,
+              backgroundColor: 'rgba(17,14,14,0.34)',
+              borderWidth: 1, borderColor: 'rgba(242,199,190,0.24)',
+              paddingHorizontal: 13, paddingVertical: 6, borderRadius: 999,
+            }}
+          >
+            <Icon name="eye" size={13} color={Deep.goldOnDeep} strokeWidth={1.6} />
+            <Text style={{ color: Deep.goldOnDeep, fontSize: 11, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>
+              {formatted} watching
+            </Text>
+          </Glass>
         </View>
       </View>
     </View>
