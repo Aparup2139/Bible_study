@@ -57,7 +57,9 @@ try {
 } catch {
   $resp = $_.Exception.Response
   $status = if ($resp) { [int]$resp.StatusCode.value__ } else { 0 }
-  try { $sr = New-Object IO.StreamReader($resp.GetResponseStream()); $respBody = $sr.ReadToEnd() } catch { $respBody = $_.Exception.Message }
+  # PS 5.1: the error stream is often already consumed; ErrorDetails has the body.
+  $respBody = $_.ErrorDetails.Message
+  if (-not $respBody) { try { $sr = New-Object IO.StreamReader($resp.GetResponseStream()); $respBody = $sr.ReadToEnd() } catch { $respBody = '' } }
 }
 Assert "bogus id_token rejected 4xx" ($status -ge 400 -and $status -lt 500) "got $status : $respBody"
 Assert "rejection is token-validation (provider IS enabled)" ($respBody -notmatch 'not enabled|unsupported' -and $respBody -match 'token|OIDC|JWT|jwt') "got: $respBody"
