@@ -45,6 +45,15 @@ export interface LiveStream {
 
 export type LiveStreamStatus = 'idle' | 'countdown' | 'live' | 'ended';
 
+// ─── Featured Videos ─────────────────────────────────────────────────────────
+
+/** Featured YouTube video slot on Home (mirrors @bibleway/shared-types FeaturedVideo). */
+export interface FeaturedVideo {
+  slot: number;
+  youtubeVideoId: string | null;
+  title: string;
+}
+
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
