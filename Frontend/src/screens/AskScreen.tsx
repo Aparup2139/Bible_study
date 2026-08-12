@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput,
-  TouchableOpacity, View,
+  Animated, Easing, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +9,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, PressScale } from '../components/elegant/Kit';
+import { StickyInputBar } from '../components/elegant/Keyboard';
 
 interface Props {
   onClose: () => void;
@@ -168,9 +168,9 @@ function ScriptureBody({ text, animate, onGrow }: { text: string; animate: boole
   });
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={skip} disabled={done}>
+    <PressScale to={1} onPress={skip} disabled={done}>
       <View style={{ gap: 13 }}>{content}</View>
-    </TouchableOpacity>
+    </PressScale>
   );
 }
 
@@ -247,7 +247,7 @@ function AssistantLabel() {
 
 export function AskScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
@@ -288,6 +288,7 @@ export function AskScreen({ onClose }: Props) {
   const card = {
     backgroundColor: c.surface2, borderWidth: 1, borderColor: c.hairlineSoft,
     borderRadius: Radii.lg, borderTopLeftRadius: 5, padding: 16,
+    ...elev.card,
   } as const;
 
   return (
@@ -304,8 +305,7 @@ export function AskScreen({ onClose }: Props) {
         <GlassCircle icon="pen" onPress={reset} iconSize={14} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top}>
-        <ScrollView
+      <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: 20, gap: 18, flexGrow: 1 }}
@@ -325,7 +325,7 @@ export function AskScreen({ onClose }: Props) {
               <View style={{ alignSelf: 'stretch', marginTop: 26, gap: 10 }}>
                 {EXAMPLES.map((ex) => (
                   <PressScale key={ex} onPress={() => send(ex)} to={0.98}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, paddingVertical: 15, paddingHorizontal: 17 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft, borderRadius: Radii.md, paddingVertical: 15, paddingHorizontal: 17, ...elev.card }}>
                       <Text style={{ color: c.ink, fontSize: 13, fontFamily: Fonts.sans, flex: 1, letterSpacing: 0.2 }}>{ex}</Text>
                       <View style={{ marginLeft: 10 }}>
                         <Icon name="arrowRight" size={14} color={c.gold} strokeWidth={1.6} />
@@ -350,7 +350,7 @@ export function AskScreen({ onClose }: Props) {
               ) : (
                 <FadeIn key={m.id} style={{ alignItems: 'flex-start' }}>
                   <AssistantLabel />
-                  <View style={[card, { maxWidth: '94%' }, m.error && { borderColor: 'rgba(224,106,80,0.4)', backgroundColor: 'rgba(224,106,80,0.08)' }]}>
+                  <View style={[card, { maxWidth: '94%' }, m.error && { borderColor: 'rgba(230,114,96,0.4)', backgroundColor: 'rgba(230,114,96,0.08)' }]}>
                     {m.error ? (
                       <Text style={{ color: c.live, fontSize: 13.5, lineHeight: 21, fontFamily: Fonts.sans }}>{m.text}</Text>
                     ) : (
@@ -376,7 +376,7 @@ export function AskScreen({ onClose }: Props) {
         </ScrollView>
 
         {/* composer */}
-        <View style={{ borderTopWidth: 1, borderTopColor: c.hairlineSoft, paddingHorizontal: 18, paddingTop: 10, paddingBottom: insets.bottom + 10 }}>
+        <StickyInputBar style={{ borderTopWidth: 1, borderTopColor: c.hairlineSoft, paddingHorizontal: 18, paddingTop: 10 }}>
           <Text style={{ fontSize: 9, fontFamily: Fonts.sans, color: c.ink3, textAlign: 'center', marginBottom: 9, letterSpacing: 0.8 }}>
             AI study aid — always weigh answers against Scripture.
           </Text>
@@ -398,16 +398,15 @@ export function AskScreen({ onClose }: Props) {
             />
             <PressScale onPress={() => send(input)} disabled={!canSend} to={0.9}>
               <LinearGradient
-                colors={canSend ? [c.goldBright, c.gold] : [c.surface2, c.surface2]}
+                colors={canSend ? [c.hopeBright, c.hope] : [c.surface2, c.surface2]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: canSend ? c.hopeBorder : c.hairlineSoft, ...elev.chip }}
               >
-                <Icon name="send" size={17} color={canSend ? c.onGold : c.ink3} strokeWidth={1.8} />
+                <Icon name="send" size={17} color={canSend ? c.onHope : c.ink3} strokeWidth={1.8} />
               </LinearGradient>
             </PressScale>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </StickyInputBar>
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { PressScale } from './elegant/Kit';
 import { Colors, Typography, Spacing, BorderRadius } from '../theme';
 import type { UserProfile } from '../types';
 
@@ -30,9 +31,9 @@ export function ProfileSection({ profile, onEditPress }: Props) {
         <View style={styles.info}>
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{profile.displayName}</Text>
-            <TouchableOpacity style={styles.editBtn} onPress={onEditPress} activeOpacity={0.8}>
+            <PressScale style={styles.editBtn} onPress={onEditPress}>
               <Text style={styles.editBtnText}>Edit</Text>
-            </TouchableOpacity>
+            </PressScale>
           </View>
 
           <Text style={styles.handle}>{profile.handle}</Text>
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   editBtnText: {
-    color: '#fff',
+    color: '#121011',
     fontSize: Typography.xs,
     fontWeight: Typography.semibold,
   },

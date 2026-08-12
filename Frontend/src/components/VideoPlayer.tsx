@@ -2,12 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Dimensions,
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PressScale } from './elegant/Kit';
 import { LiveBadge } from './ui/LiveBadge';
 import { Colors, Typography, Spacing } from '../theme';
 
@@ -70,9 +70,9 @@ export function VideoPlayer({ onAvatarPress, initial = '?', viewerCount = 1248 }
           <Text style={styles.appTitle}>Motion Video</Text>
           <LiveBadge />
         </View>
-        <TouchableOpacity onPress={onAvatarPress} style={styles.avatarBtn} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <PressScale onPress={onAvatarPress} style={styles.avatarBtn}>
           <Text style={styles.avatarText}>{initial}</Text>
-        </TouchableOpacity>
+        </PressScale>
       </LinearGradient>
 
       {/* Bottom overlay — viewer count */}
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)',
   },
   avatarText: {
-    color: '#fff',
+    color: '#121011',
     fontSize: Typography.lg,
     fontWeight: Typography.bold,
   },

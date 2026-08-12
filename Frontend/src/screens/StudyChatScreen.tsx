@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, KeyboardAvoidingView, PermissionsAndroid, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, PermissionsAndroid, Platform, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { IRtcEngine, IRtcEngineEventHandler } from 'react-native-agora';
@@ -22,6 +22,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { Deep, Fonts, Radii } from '../theme/elegant';
 import { Icon } from '../components/elegant/Icons';
 import { GlassCircle, PressScale, SectionLabel } from '../components/elegant/Kit';
+import { Glass } from '../components/elegant/Glass';
 import type { RoomParticipant } from '../types';
 
 interface Props {
@@ -66,7 +67,7 @@ function SpeakerAvatar({ participant, onForceMute }: { participant: RoomParticip
           <Animated.View
             style={{
               position: 'absolute', top: 0, left: 0, width: 72, height: 72, borderRadius: 36,
-              borderWidth: 1.5, borderColor: c.gold,
+              borderWidth: 1.5, borderColor: c.hope,
               transform: [{ scale: ringScale }], opacity: ringOpacity,
             }}
           />
@@ -76,7 +77,7 @@ function SpeakerAvatar({ participant, onForceMute }: { participant: RoomParticip
             width: 72, height: 72, borderRadius: 36,
             backgroundColor: c.surface2,
             borderWidth: participant.isSpeaking ? 1.5 : 1,
-            borderColor: participant.isSpeaking ? c.gold : c.hairlineSoft,
+            borderColor: participant.isSpeaking ? c.hope : c.hairlineSoft,
             alignItems: 'center', justifyContent: 'center',
           }}
         >
@@ -115,7 +116,7 @@ function ListenerAvatar({ participant, onApprove }: { participant: RoomParticipa
       <View
         style={{
           width: 54, height: 54, borderRadius: 27,
-          backgroundColor: c.surface, borderWidth: 1, borderColor: participant.handRaised ? c.gold : c.hairlineSoft,
+          backgroundColor: c.surface, borderWidth: 1, borderColor: participant.handRaised ? c.hope : c.hairlineSoft,
           alignItems: 'center', justifyContent: 'center',
         }}
       >
@@ -127,9 +128,9 @@ function ListenerAvatar({ participant, onApprove }: { participant: RoomParticipa
         {participant.displayName}
       </Text>
       {participant.handRaised && onApprove ? (
-        <TouchableOpacity onPress={onApprove} activeOpacity={0.7}>
+        <PressScale onPress={onApprove}>
           <Text style={{ color: c.gold, fontSize: 9.5, fontFamily: Fonts.sansMed }}>✋ Approve</Text>
-        </TouchableOpacity>
+        </PressScale>
       ) : null}
     </View>
   );
@@ -137,7 +138,7 @@ function ListenerAvatar({ participant, onApprove }: { participant: RoomParticipa
 
 export function StudyChatScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const profile = useAppStore((s) => s.profile);
   const myId = profile.id;
 
@@ -331,11 +332,12 @@ export function StudyChatScreen({ onClose }: Props) {
   const speakers = displayParticipants.filter((p) => p.role === 'host' || p.role === 'speaker');
   const listeners = displayParticipants.filter((p) => p.role === 'listener');
 
-  const headerPill = {
-    backgroundColor: 'rgba(244,232,205,0.1)',
-    borderWidth: 1, borderColor: 'rgba(232,203,143,0.28)',
+  const headerPillBase = {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(242,199,190,0.28)',
     paddingHorizontal: 17, paddingVertical: 9, borderRadius: Radii.pill,
   } as const;
+  const headerPill = { ...headerPillBase, ...elev.chip } as const;
 
   if (!agoraReady) {
     return (
@@ -356,13 +358,17 @@ export function StudyChatScreen({ onClose }: Props) {
           <GlassCircle icon="x" onPress={handleClose} onDeep />
           <View style={{ flexDirection: 'row', gap: 9 }}>
             <PressScale to={0.94}>
-              <View style={headerPill}>
-                <Text style={{ color: '#EEDFBE', fontSize: 11.5, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>Share</Text>
+              <View style={{ borderRadius: Radii.pill, ...elev.chip }}>
+                <Glass intensity={20} style={headerPillBase}>
+                  <Text style={{ color: Deep.goldOnDeep, fontSize: 11.5, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>Share</Text>
+                </Glass>
               </View>
             </PressScale>
             <PressScale to={0.94}>
-              <View style={headerPill}>
-                <Text style={{ color: '#EEDFBE', fontSize: 11.5, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>+ Invite</Text>
+              <View style={{ borderRadius: Radii.pill, ...elev.chip }}>
+                <Glass intensity={20} style={headerPillBase}>
+                  <Text style={{ color: Deep.goldOnDeep, fontSize: 11.5, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>+ Invite</Text>
+                </Glass>
               </View>
             </PressScale>
           </View>
@@ -390,7 +396,7 @@ export function StudyChatScreen({ onClose }: Props) {
           </PressScale>
         </View>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={{ marginBottom: 16 }}>
             <SectionLabel>Speakers · {speakers.length}</SectionLabel>
           </View>
@@ -413,17 +419,18 @@ export function StudyChatScreen({ onClose }: Props) {
               flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
               backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft,
               borderRadius: Radii.md, paddingHorizontal: 17, paddingVertical: 14, marginBottom: 26,
+              ...elev.card,
             }}
           >
             <Text style={{ color: c.ink3, fontSize: 12, fontFamily: Fonts.sansLight, letterSpacing: 0.3 }}>
               {listeners.length} others listening
             </Text>
             {role === 'listener' && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => roomId && raiseHand.mutate(roomId)} disabled={raiseHand.isPending}>
+              <PressScale onPress={() => roomId && raiseHand.mutate(roomId)} disabled={raiseHand.isPending}>
                 <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.4 }}>
                   {participants.find((p) => p.id === myId)?.handRaised ? 'Hand raised ✋' : 'Raise hand'}
                 </Text>
-              </TouchableOpacity>
+              </PressScale>
             )}
           </View>
 
@@ -448,12 +455,13 @@ export function StudyChatScreen({ onClose }: Props) {
       )}
 
       {phase === 'live' && chatOpen && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <>
           <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
             <ChatFeed messages={messages} />
           </View>
-          <ChatInputBar onSend={send} bottomInset={0} />
-        </KeyboardAvoidingView>
+          {/* ChatInputBar rides the keyboard itself via StickyInputBar — no extra wrapper. */}
+          <ChatInputBar onSend={send} />
+        </>
       )}
 
       {phase === 'live' && (
@@ -464,18 +472,19 @@ export function StudyChatScreen({ onClose }: Props) {
             borderTopWidth: 1, borderTopColor: c.hairlineSoft,
           }}
         >
-          <TouchableOpacity onPress={handleClose} activeOpacity={0.7}>
+          <PressScale onPress={handleClose}>
             <Text style={{ color: c.live, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.5 }}>Leave quietly</Text>
-          </TouchableOpacity>
+          </PressScale>
           <View style={{ flexDirection: 'row', gap: 13 }}>
             {role !== 'listener' && (
               <PressScale onPress={toggleMute} to={0.9}>
                 <View
                   style={{
                     width: 46, height: 46, borderRadius: 23,
-                    backgroundColor: muted ? 'rgba(224,106,80,0.13)' : c.surface2,
-                    borderWidth: 1, borderColor: muted ? 'rgba(224,106,80,0.4)' : c.hairlineSoft,
+                    backgroundColor: muted ? 'rgba(230,114,96,0.13)' : c.surface2,
+                    borderWidth: 1, borderColor: muted ? 'rgba(230,114,96,0.4)' : c.hairlineSoft,
                     alignItems: 'center', justifyContent: 'center',
+                    ...elev.chip,
                   }}
                 >
                   <Icon name={muted ? 'micOff' : 'mic'} size={17} color={muted ? c.live : c.gold} strokeWidth={1.6} />
@@ -486,7 +495,7 @@ export function StudyChatScreen({ onClose }: Props) {
               <LinearGradient
                 colors={chatOpen ? [c.gold, c.goldBright] : [c.goldBright, c.gold]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', ...elev.chip }}
               >
                 <Icon name={chatOpen ? 'x' : 'chat'} size={17} color={c.onGold} strokeWidth={1.6} />
               </LinearGradient>

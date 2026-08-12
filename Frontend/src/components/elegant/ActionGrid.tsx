@@ -28,7 +28,7 @@ interface Props {
 
 /** 3×2 grid of glass circle actions — drop-in replacement for ActionButtons. */
 export function ActionGrid({ onPress, activeKey }: Props) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 22, paddingVertical: 4 }}>
       {ACTIONS.map((a) => {
@@ -40,12 +40,13 @@ export function ActionGrid({ onPress, activeKey }: Props) {
                 <View
                   style={{
                     width: 74, height: 74, borderRadius: 37,
-                    backgroundColor: active ? c.goldSoft : c.surface,
-                    borderWidth: 1, borderColor: active ? c.hairline : c.hairlineSoft,
+                    backgroundColor: active ? c.hopeSoft : c.surface,
+                    borderWidth: 1, borderColor: active ? c.hopeBorderSoft : c.hairlineSoft,
                     alignItems: 'center', justifyContent: 'center',
+                    ...elev.card,
                   }}
                 >
-                  <Icon name={a.icon} size={26} color={c.gold} strokeWidth={1.5} />
+                  <Icon name={a.icon} size={26} color={active ? c.hope : c.gold} strokeWidth={1.5} />
                   {a.key === 'live' ? (
                     <View style={{ position: 'absolute', top: 5, right: 7 }}>
                       <PulseDot color={c.live} size={7} />

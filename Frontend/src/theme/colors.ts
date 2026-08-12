@@ -1,8 +1,8 @@
 export const Colors = {
   // Primary brand
-  primary: '#9500ff',
-  primaryDark: '#4400cc',
-  primaryLight: '#a844ff',
+  primary: '#D3D5DA',
+  primaryDark: '#999BA1',
+  primaryLight: '#F3F4F7',
 
   // Backgrounds
   background: '#000000',
@@ -19,13 +19,13 @@ export const Colors = {
   textDisabled: '#555555',
 
   // Status
-  live: '#ff4444',
+  live: '#E67260',
   success: '#4caf50',
   warning: '#ff9800',
   error: '#f44336',
 
   // Action button states
-  actionActive: '#ff0000',
+  actionActive: '#E67260',
   actionInactive: '#1a1a1a',
 
   // Overlays
@@ -38,8 +38,8 @@ export const Colors = {
   chatInput: '#0a0a0a',
 
   // Gradient stops
-  gradientRedStart: '#4400cc',
-  gradientRedEnd: '#cc0000',
+  gradientRedStart: '#100E0D',
+  gradientRedEnd: '#3A2620',
 } as const;
 
 export type ColorKey = keyof typeof Colors;

@@ -1,9 +1,18 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useEffect } from 'react';
+import { Pressable, Text, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeContext';
-import { Fonts, Radii } from '../../theme/elegant';
+import { Deep, Fonts, Radii } from '../../theme/elegant';
 import { Icon, type IconName } from './Icons';
+import { Glass } from './Glass';
 
 /** Springy press feedback — the app's universal touch response. */
 export function PressScale({
@@ -15,38 +24,32 @@ export function PressScale({
   disabled?: boolean;
   to?: number;
 }) {
-  const v = useRef(new Animated.Value(1)).current;
-  const springTo = (val: number, fast = false) =>
-    Animated.spring(v, { toValue: val, useNativeDriver: true, speed: fast ? 46 : 26, bounciness: fast ? 2 : 7 }).start();
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => springTo(to, true)}
-      onPressOut={() => springTo(1)}
+      onPressIn={() => { scale.value = withSpring(to, { damping: 15, stiffness: 250 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 180 }); }}
       hitSlop={6}
     >
-      <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
+      <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
     </Pressable>
   );
 }
 
 /** Slow opacity pulse (live dots). */
 export function PulseDot({ color, size = 6 }: { color: string; size?: number }) {
-  const o = useRef(new Animated.Value(1)).current;
+  const o = useSharedValue(1);
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(o, { toValue: 0.35, duration: 800, useNativeDriver: true }),
-        Animated.timing(o, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
+    o.value = withRepeat(withTiming(0.35, { duration: 800 }), -1, true);
+    return () => cancelAnimation(o);
   }, [o]);
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: o.value }));
   return (
     <Animated.View
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: o }}
+      style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, animatedStyle]}
     />
   );
 }
@@ -64,26 +67,35 @@ export function GlassCircle({
   bg?: string;
   onDeep?: boolean;
 }) {
-  const { c } = useTheme();
-  const resolvedBg = bg ?? (onDeep ? 'rgba(14,11,7,0.55)' : c.surface2);
-  const resolvedBorder = borderColor ?? (onDeep ? 'rgba(232,203,143,0.32)' : c.hairlineSoft);
-  const resolvedColor = color ?? (onDeep ? '#E8CB8F' : c.ink2);
+  const { c, elev } = useTheme();
+  const resolvedBg = bg ?? (onDeep ? Deep.chipOnDeep : c.surface2);
+  const resolvedBorder = borderColor ?? (onDeep ? Deep.chipBorderOnDeep : c.hairlineSoft);
+  const resolvedColor = color ?? (onDeep ? Deep.goldOnDeep : c.ink2);
+  const circle: ViewStyle = {
+    width: size, height: size, borderRadius: size / 2,
+    backgroundColor: resolvedBg, borderWidth: 1, borderColor: resolvedBorder,
+    alignItems: 'center', justifyContent: 'center',
+  };
+  // onDeep circles float over video/deep gradients → real backdrop blur.
+  // Shadow lives on the outer wrapper so Glass's overflow:'hidden' can't clip it.
   return (
     <PressScale onPress={onPress} to={0.88}>
-      <View
-        style={{
-          width: size, height: size, borderRadius: size / 2,
-          backgroundColor: resolvedBg, borderWidth: 1, borderColor: resolvedBorder,
-          alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Icon name={icon} size={iconSize} color={resolvedColor} strokeWidth={1.7} />
-      </View>
+      {onDeep ? (
+        <View style={{ borderRadius: size / 2, ...elev.chip }}>
+          <Glass intensity={22} style={circle}>
+            <Icon name={icon} size={iconSize} color={resolvedColor} strokeWidth={1.7} />
+          </Glass>
+        </View>
+      ) : (
+        <View style={{ ...circle, ...elev.chip }}>
+          <Icon name={icon} size={iconSize} color={resolvedColor} strokeWidth={1.7} />
+        </View>
+      )}
     </PressScale>
   );
 }
 
-/** Gold gradient pill button. */
+/** Rose gradient pill button — the app's primary CTA (export name kept for call sites). */
 export function GoldPill({
   label, onPress, icon, iconSize = 11, paddingH = 15, paddingV = 9, fontSize = 11, disabled,
 }: {
@@ -96,21 +108,23 @@ export function GoldPill({
   fontSize?: number;
   disabled?: boolean;
 }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
     <PressScale onPress={onPress} disabled={disabled}>
       <LinearGradient
-        colors={[c.goldBright, c.gold]}
+        colors={[c.hopeBright, c.hope]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
           flexDirection: 'row', alignItems: 'center', gap: 6,
           paddingHorizontal: paddingH, paddingVertical: paddingV,
+          borderWidth: 1, borderColor: c.hopeBorder,
           borderRadius: Radii.pill, opacity: disabled ? 0.5 : 1,
+          ...elev.chip,
         }}
       >
-        {icon ? <Icon name={icon} size={iconSize} color={c.onGold} strokeWidth={2} /> : null}
-        <Text style={{ color: c.onGold, fontSize, fontFamily: Fonts.sansSemi, letterSpacing: 0.8 }}>
+        {icon ? <Icon name={icon} size={iconSize} color={c.onHope} strokeWidth={2} /> : null}
+        <Text style={{ color: c.onHope, fontSize, fontFamily: Fonts.sansSemi, letterSpacing: 0.8 }}>
           {label}
         </Text>
       </LinearGradient>
@@ -118,29 +132,36 @@ export function GoldPill({
   );
 }
 
-/** LIVE badge — red pulse dot + tracked-out label. */
+/** LIVE badge — rose pulse dot + tracked-out label. */
 export function LiveBadge({ onDeep = false, small = false }: { onDeep?: boolean; small?: boolean }) {
-  const { c } = useTheme();
-  return (
-    <View
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: small ? 5 : 7,
-        backgroundColor: onDeep ? 'rgba(14,11,7,0.55)' : c.goldSoft,
-        borderWidth: 1, borderColor: onDeep ? 'rgba(232,203,143,0.32)' : c.hairline,
-        paddingHorizontal: small ? 9 : 11, paddingVertical: small ? 4 : 5,
-        borderRadius: Radii.pill, alignSelf: 'flex-start',
-      }}
-    >
-      <PulseDot color={onDeep ? '#E06A50' : c.live} size={small ? 5 : 6} />
+  const { c, elev } = useTheme();
+  const pill: ViewStyle = {
+    flexDirection: 'row', alignItems: 'center', gap: small ? 5 : 7,
+    backgroundColor: onDeep ? Deep.chipOnDeep : c.hopeSoft,
+    borderWidth: 1, borderColor: onDeep ? Deep.chipBorderOnDeep : c.hopeBorder,
+    paddingHorizontal: small ? 9 : 11, paddingVertical: small ? 4 : 5,
+    borderRadius: Radii.pill, alignSelf: 'flex-start',
+  };
+  const inner = (
+    <>
+      <PulseDot color={onDeep ? Deep.liveOnDeep : c.live} size={small ? 5 : 6} />
       <Text
         style={{
-          color: onDeep ? '#EEDFBE' : c.gold,
+          color: onDeep ? Deep.goldOnDeep : c.hope,
           fontSize: small ? 8 : 9.5, fontFamily: Fonts.sansSemi, letterSpacing: 2.2,
         }}
       >
         LIVE
       </Text>
+    </>
+  );
+  // onDeep badges overlay video → backdrop blur; shadow on outer wrapper.
+  return onDeep ? (
+    <View style={{ borderRadius: Radii.pill, alignSelf: 'flex-start', ...elev.chip }}>
+      <Glass intensity={20} style={pill}>{inner}</Glass>
     </View>
+  ) : (
+    <View style={{ ...pill, ...elev.chip }}>{inner}</View>
   );
 }
 
@@ -168,13 +189,14 @@ export function SerifTitle({ children, size = 19, color }: { children: React.Rea
 export function Medallion({ initial, size = 50, color, bg, border }: {
   initial: string; size?: number; color?: string; bg?: string; border?: string;
 }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
     <View
       style={{
         width: size, height: size, borderRadius: size / 2,
         backgroundColor: bg ?? c.goldSoft, borderWidth: 1, borderColor: border ?? c.hairline,
         alignItems: 'center', justifyContent: 'center',
+        ...elev.chip,
       }}
     >
       <Text style={{ fontFamily: Fonts.serif, fontSize: size * 0.38, color: color ?? c.gold }}>{initial}</Text>
@@ -188,13 +210,14 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search videos, u
   onChangeText: (t: string) => void;
   placeholder?: string;
 }) {
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   return (
     <View
       style={{
         flexDirection: 'row', alignItems: 'center', gap: 11,
         backgroundColor: c.surface, borderWidth: 1, borderColor: c.hairlineSoft,
         borderRadius: Radii.pill, paddingHorizontal: 20, height: 52,
+        ...elev.card,
       }}
     >
       <Icon name="search" size={16} color={c.gold} strokeWidth={1.6} />

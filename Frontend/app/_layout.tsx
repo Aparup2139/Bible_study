@@ -1,9 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import {
   CormorantGaramond_500Medium,
@@ -29,6 +31,22 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
 function AppStack() {
   useSyncProfileToStore();
   const { c, isDark } = useTheme();
+
+  // Theme crossfade: on toggle, an overlay in the *new* background color snaps
+  // fully opaque, then fades out over ~220ms so the palette swap feels soft.
+  const fade = useSharedValue(0);
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      // Skip the very first render — no flash on app launch.
+      isFirstRender.current = false;
+      return;
+    }
+    fade.value = 1;
+    fade.value = withTiming(0, { duration: 220 });
+  }, [isDark, fade]);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={c.bg} />
@@ -41,6 +59,11 @@ function AppStack() {
       >
         <Stack.Screen name="index" />
       </Stack>
+      {/* Crossfade overlay — never intercepts touches. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }, fadeStyle]}
+      />
     </>
   );
 }

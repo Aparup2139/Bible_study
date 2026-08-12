@@ -30,7 +30,7 @@ function resolveVideoMime(mimeType: string | undefined, name: string): string {
 
 export function UploadVideoScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, elev } = useTheme();
   const upload = useUploadVideo();
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -76,7 +76,7 @@ export function UploadVideoScreen({ onClose }: Props) {
   }, []);
 
   const emblem = (
-    <View style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 1, borderColor: c.hairline, backgroundColor: c.goldSoft, alignItems: 'center', justifyContent: 'center', ...elev.chip }}>
       <Icon name="film" size={30} color={c.gold} strokeWidth={1.4} />
     </View>
   );
@@ -120,7 +120,7 @@ export function UploadVideoScreen({ onClose }: Props) {
             <SerifTitle size={24}>Now playing</SerifTitle>
             <Video
               source={{ uri: playbackUrl }}
-              style={{ width: '100%', height: PLAYER_HEIGHT, backgroundColor: '#0A0806', borderRadius: Radii.xl, overflow: 'hidden' }}
+              style={{ width: '100%', height: PLAYER_HEIGHT, backgroundColor: '#100E0D', borderRadius: Radii.xl, overflow: 'hidden' }}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay
