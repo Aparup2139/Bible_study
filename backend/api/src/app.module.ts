@@ -10,6 +10,7 @@ import { PodcastsModule } from './podcasts/podcasts.module';
 import { AgentModule } from './agent/agent.module';
 import { StreamsModule } from './streams/streams.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { FeaturedVideosModule } from './featured-videos/featured-videos.module';
 import { RedisModule } from './redis/redis.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -40,6 +41,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     StreamsModule,
     // Study Chat — audio room on the same Agora integration as StreamsModule
     RoomsModule,
+    // Featured YouTube videos on Home (4 slots)
+    FeaturedVideosModule,
     // Feature modules are added per phase under ./modules/<feature>:
     //   Phase 4  StreamsModule
     //   Phase 5  ChatModule

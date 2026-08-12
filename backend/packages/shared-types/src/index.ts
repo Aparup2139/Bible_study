@@ -10,3 +10,4 @@ export * from './denomination';
 export * from './realtime';
 export * from './agent';
 export * from './video-stream';
+export * from './featured-video';
