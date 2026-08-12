@@ -7,6 +7,8 @@ import { LiveBadge, SearchBar, SerifTitle } from '../components/elegant/Kit';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { useLiveStreams } from '../hooks/useLiveStreams';
+import { FeaturedVideoCard } from '../components/elegant/FeaturedVideoCard';
+import { useFeaturedVideos } from '../hooks/useFeaturedVideos';
 import type { LiveStream } from '../types';
 
 const { width } = Dimensions.get('window');
@@ -20,6 +22,9 @@ export function HomeScreen() {
 
   // Real "Streaming Now" feed from the backend (GET /streams).
   const { data: streams = [] } = useLiveStreams();
+
+  // Four featured YouTube slots under Streaming Now (GET /featured-videos).
+  const { data: featuredVideos = [] } = useFeaturedVideos();
 
   const filteredStreams = searchQuery.trim()
     ? streams.filter((s) => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -92,6 +97,15 @@ export function HomeScreen() {
             scrollEnabled={false}
             ItemSeparatorComponent={() => <View style={{ height: CARD_GAP }} />}
           />
+        </View>
+
+        <View style={{ paddingHorizontal: H_PAD, gap: 16 }}>
+          <SerifTitle size={23}>Featured Videos</SerifTitle>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP }}>
+            {featuredVideos.map((video) => (
+              <FeaturedVideoCard key={video.slot} video={video} width={CARD_WIDTH} />
+            ))}
+          </View>
         </View>
       </View>
     </ScrollView>
