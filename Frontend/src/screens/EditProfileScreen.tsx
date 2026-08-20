@@ -1,13 +1,16 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert, Animated, Linking, Modal, ScrollView,
+  ActivityIndicator, Alert, Animated, Image, Linking, Modal, ScrollView,
   Text, TextInput, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
+import { supabase } from '../services/supabase';
 import { useAppStore } from '../store/useAppStore';
-import { useUpdateProfile } from '../hooks/useProfile';
+import { useMyProfile, useUpdateProfile } from '../hooks/useProfile';
 import { signOut, deleteAccount } from '../services/session';
 import { LEGAL_DOCS, type LegalDocKey } from '../content/legal';
 import { useTheme } from '../theme/ThemeContext';
@@ -42,6 +45,7 @@ function SocialField({ label, value, setter, placeholder }: { label: string; val
         placeholderTextColor={c.ink3}
         autoCapitalize="none"
         autoCorrect={false}
+        editable={false}
       />
     </View>
   );
@@ -56,6 +60,9 @@ export function EditProfileScreen({ onClose }: Props) {
   const { c, elev } = useTheme();
   const { profile } = useAppStore();
   const updateProfile = useUpdateProfile();
+  // Real profile from the API — the zustand store seeds a placeholder before
+  // this resolves, and saving placeholder values would overwrite the real ones.
+  const { data: me, isError: profileError } = useMyProfile();
 
   const handleSignOut = async () => {
     // The auth gate swaps to the sign-in screen automatically once the session clears.
@@ -86,9 +93,19 @@ export function EditProfileScreen({ onClose }: Props) {
   };
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('info');
-  const [displayName, setDisplayName] = useState(profile.displayName);
-  const [handle, setHandle] = useState(profile.handle.replace('@', ''));
-  const [bio, setBio] = useState(profile.bio);
+  const [displayName, setDisplayName] = useState(me?.displayName ?? '');
+  const [handle, setHandle] = useState(me?.handle.replace('@', '') ?? '');
+  const [bio, setBio] = useState(me?.bio ?? '');
+
+  // Seed once when the profile query resolves after mount (cold-start case).
+  const seededRef = useRef(me != null);
+  useEffect(() => {
+    if (seededRef.current || !me) return;
+    seededRef.current = true;
+    setDisplayName(me.displayName);
+    setHandle(me.handle.replace('@', ''));
+    setBio(me.bio);
+  }, [me]);
   const [website, setWebsite] = useState('');
   const [youtube, setYoutube] = useState('');
   const [twitter, setTwitter] = useState('');
@@ -125,6 +142,48 @@ export function EditProfileScreen({ onClose }: Props) {
       },
     );
   }, [displayName, handle, bio, updateProfile, showSuccess]);
+
+  const [uploading, setUploading] = useState(false);
+
+  const handlePickPhoto = useCallback(async () => {
+    if (uploading) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be signed in to upload a photo.');
+
+      const ext = asset.mimeType === 'image/png' ? 'png' : asset.mimeType === 'image/webp' ? 'webp' : 'jpg';
+      // Timestamped name so the public CDN URL changes on every upload (no stale cache).
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const bytes = await new File(asset.uri).bytes();
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(path, bytes, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
+      if (error) throw error;
+
+      updateProfile.mutate(
+        { avatarPath: path },
+        {
+          onSuccess: () => showSuccess(),
+          onError: (err) => Alert.alert('Could not save photo', err instanceof Error ? err.message : 'Please try again.'),
+        },
+      );
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  }, [uploading, updateProfile, showSuccess]);
 
   const bioRemaining = BIO_MAX - bio.length;
 
@@ -175,9 +234,11 @@ export function EditProfileScreen({ onClose }: Props) {
                 {bioRemaining} characters remaining
               </Text>
             </View>
-            <PressScale onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} to={0.98}>
+            <PressScale onPress={() => void handlePickPhoto()} disabled={uploading} to={0.98}>
               <View style={{ borderWidth: 1, borderColor: c.hairline, paddingVertical: 13, borderRadius: Radii.pill, alignItems: 'center' }}>
-                <Text style={{ color: c.gold, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>Upload Profile Photo</Text>
+                <Text style={{ color: c.gold, fontSize: 12.5, fontFamily: Fonts.sansMed, letterSpacing: 0.8 }}>
+                  {uploading ? 'Uploading…' : 'Upload Profile Photo'}
+                </Text>
               </View>
             </PressScale>
             <PressScale onPress={() => void handleSignOut()} to={0.98}>
@@ -191,6 +252,9 @@ export function EditProfileScreen({ onClose }: Props) {
       case 'social':
         return (
           <View style={{ gap: 20 }}>
+            <Text style={{ color: c.ink3, fontSize: 12, fontFamily: Fonts.sansLight, lineHeight: 19, letterSpacing: 0.3 }}>
+              Social links are coming soon — these fields can't be saved yet.
+            </Text>
             <SocialField label="Website" value={website} setter={setWebsite} placeholder="https://yourwebsite.com" />
             <SocialField label="YouTube" value={youtube} setter={setYoutube} placeholder="youtube.com/@channel" />
             <SocialField label="Twitter / X" value={twitter} setter={setTwitter} placeholder="@yourhandle" />
@@ -278,11 +342,15 @@ export function EditProfileScreen({ onClose }: Props) {
 
       {/* avatar */}
       <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 18, gap: 11 }}>
-        <PressScale onPress={() => Alert.alert('Photo Upload', 'Photo picker will open here.')} to={0.96}>
-          <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.hopeSoft, borderWidth: 1, borderColor: c.hopeBorder, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: Fonts.serif, fontSize: 40, color: c.hope }}>
-              {(displayName?.trim()?.[0] ?? '?').toUpperCase()}
-            </Text>
+        <PressScale onPress={() => void handlePickPhoto()} disabled={uploading} to={0.96}>
+          <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: c.hopeSoft, borderWidth: 1, borderColor: c.hopeBorder, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={{ width: '100%', height: '100%' }} />
+            ) : (
+              <Text style={{ fontFamily: Fonts.serif, fontSize: 40, color: c.hope }}>
+                {(displayName?.trim()?.[0] ?? '?').toUpperCase()}
+              </Text>
+            )}
           </View>
           <LinearGradient
             colors={[c.hopeBright, c.hope]}
@@ -292,7 +360,9 @@ export function EditProfileScreen({ onClose }: Props) {
             <Icon name="camera" size={13} color={c.onHope} strokeWidth={1.7} />
           </LinearGradient>
         </PressScale>
-        <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>Change Profile Photo</Text>
+        <Text style={{ color: c.gold, fontSize: 12, fontFamily: Fonts.sansMed, letterSpacing: 0.6 }}>
+          {uploading ? 'Uploading…' : 'Change Profile Photo'}
+        </Text>
       </View>
 
       {/* tabs */}
@@ -313,12 +383,26 @@ export function EditProfileScreen({ onClose }: Props) {
         })}
       </View>
 
-      <KeyboardAwareForm style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingBottom: 120 }}>
-        {renderTabContent()}
-      </KeyboardAwareForm>
+      {me == null && activeTab !== 'preferences' ? (
+        // Block the form until the real profile loads — editing the store's
+        // placeholder and saving would overwrite the real name/handle/bio.
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 34 }}>
+          {profileError ? (
+            <Text style={{ color: c.ink2, fontSize: 13, fontFamily: Fonts.sansLight, textAlign: 'center', lineHeight: 22 }}>
+              Couldn't load your profile. Check your connection, then reopen this screen to try again.
+            </Text>
+          ) : (
+            <ActivityIndicator color={c.gold} size="large" />
+          )}
+        </View>
+      ) : (
+        <KeyboardAwareForm style={{ flex: 1 }} contentContainerStyle={{ padding: 22, paddingBottom: 120 }}>
+          {renderTabContent()}
+        </KeyboardAwareForm>
+      )}
 
-      {/* save bar */}
-      {activeTab !== 'preferences' && (
+      {/* save bar — only where there's something saveable (social isn't wired yet) */}
+      {activeTab === 'info' && me != null && (
         <View style={{ borderTopWidth: 1, borderTopColor: c.hairlineSoft, paddingHorizontal: 22, paddingTop: 15, paddingBottom: insets.bottom + 15 }}>
           <PressScale onPress={handleSave} to={0.97}>
             <LinearGradient

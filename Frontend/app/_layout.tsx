@@ -88,7 +88,7 @@ function Gate() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     CormorantGaramond_500Medium,
     CormorantGaramond_500Medium_Italic,
     CormorantGaramond_600SemiBold,
@@ -103,7 +103,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            {fontsLoaded ? <Gate /> : <Loading />}
+            {/* On a font-load failure, boot with system fonts rather than
+                leaving the user on an endless spinner. */}
+            {fontsLoaded || fontError ? <Gate /> : <Loading />}
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

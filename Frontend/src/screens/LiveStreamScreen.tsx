@@ -65,6 +65,7 @@ export function LiveStreamScreen({ onClose }: Props) {
   const engineRef = useRef<IRtcEngine | null>(null);
   const handlerRef = useRef<IRtcEngineEventHandler | null>(null);
   const streamIdRef = useRef<string | null>(null);
+  const closedRef = useRef(false);
 
   const { data: detail } = useStreamDetail(streamId, status === 'live');
   const viewers = detail?.viewerCount ?? 0;
@@ -95,6 +96,7 @@ export function LiveStreamScreen({ onClose }: Props) {
 
   useEffect(() => {
     return () => {
+      closedRef.current = true;
       if (streamIdRef.current) stopBroadcast(true);
     };
   }, [stopBroadcast]);
@@ -123,8 +125,16 @@ export function LiveStreamScreen({ onClose }: Props) {
         setError('Camera and microphone permission are required to go live. Enable them in Settings → Apps → BibleWay → Permissions.');
         return;
       }
+      if (closedRef.current) return;
       const title = `${profile.displayName}'s live`;
       const res = await goLive.mutateAsync({ title });
+      if (closedRef.current) {
+        // Screen closed while the request was in flight — the unmount cleanup
+        // saw a null streamIdRef, so end the stream here instead of starting an
+        // invisible camera+mic broadcast on a dead instance.
+        endStream.mutate(res.streamId);
+        return;
+      }
       streamIdRef.current = res.streamId;
       setStreamId(res.streamId);
 
@@ -151,7 +161,7 @@ export function LiveStreamScreen({ onClose }: Props) {
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Could not start the stream.');
     }
-  }, [goLive, profile.displayName, renewToken, stopBroadcast]);
+  }, [goLive, endStream, profile.displayName, renewToken, stopBroadcast]);
 
   const handleEnd = useCallback(() => {
     stopBroadcast(true);

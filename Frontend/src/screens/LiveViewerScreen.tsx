@@ -200,7 +200,9 @@ export function LiveViewerScreen({ streamId, onClose }: Props) {
       {phase === 'error' && <CenterMessage heading="Couldn't join" sub={error} />}
 
       {phase === 'watching' && (
-        <View style={{ flex: 1 }}>
+        // Bottom-pinned overlay: StickyInputBar's keyboard padding lifts the
+        // composer from the real screen bottom.
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
           <View style={{ paddingHorizontal: 20, gap: 10 }}>
             <ChatFeed messages={messages} />
             <View style={{ borderRadius: Radii.xl, ...elev.card }}>

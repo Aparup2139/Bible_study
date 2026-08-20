@@ -7,7 +7,7 @@
  *   keeping them in sync via Supabase's auth state listener.
  */
 import { useEffect, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, type AppStateStatus } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { api } from './api';
@@ -251,6 +251,16 @@ export async function confirmPasswordReset(
   });
   if (verifyErr) return { ok: false, error: verifyErr.message };
   const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
-  if (updErr) return { ok: false, error: updErr.message };
+  if (updErr) {
+    // verifyOtp already signed the user in (the gate unmounted AuthScreen), so
+    // a returned error would render nowhere. Sign out so the gate goes back to
+    // sign-in with the password UNCHANGED, and surface the failure globally.
+    await supabase.auth.signOut();
+    Alert.alert(
+      'Password not updated',
+      `${updErr.message}\n\nYour password was not changed. Please request a new code and try again.`,
+    );
+    return { ok: false, error: updErr.message };
+  }
   return { ok: true };
 }

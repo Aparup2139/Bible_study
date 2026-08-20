@@ -23,7 +23,17 @@
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "494316028275-7ng1oc1jg53katrrkc9mg09mr6saru8v.apps.googleusercontent.com"
       }
     },
-    "production": {}
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://bibleway-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://cdrigufdimzswbaalafo.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_u1rpouW75HC4EPX9OFPD_Q_UhBgp5c0",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "494316028275-7ng1oc1jg53katrrkc9mg09mr6saru8v.apps.googleusercontent.com"
+      }
+    }
   },
   "submit": {
     "production": {}

@@ -213,12 +213,17 @@ export function StudyChatScreen({ onClose }: Props) {
           return;
         }
         const res = await joinRoom.mutateAsync({ displayName: profile.displayName, avatarEmoji: '🙂' });
-        // The server-side join already happened even if we were cancelled while in flight —
-        // record it so the cleanup below still notifies the server instead of orphaning the room.
+        if (cancelled) {
+          // The server-side join already happened, but the cleanup/timeout ran
+          // while roomIdRef was still null — notify the server directly so we
+          // don't orphan the room (or ghost-host it).
+          if (res.role === 'host') endRoom.mutate(res.roomId);
+          else leaveRoom.mutate(res.roomId);
+          return;
+        }
         roomIdRef.current = res.roomId;
         isHostRef.current = res.role === 'host';
         wasListenerRef.current = res.role === 'listener';
-        if (cancelled) return;
         setRoomId(res.roomId);
         setRole(res.role);
 
@@ -454,21 +459,13 @@ export function StudyChatScreen({ onClose }: Props) {
         </ScrollView>
       )}
 
-      {phase === 'live' && chatOpen && (
-        <>
-          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-            <ChatFeed messages={messages} />
-          </View>
-          {/* ChatInputBar rides the keyboard itself via StickyInputBar — no extra wrapper. */}
-          <ChatInputBar onSend={send} />
-        </>
-      )}
-
       {phase === 'live' && (
         <View
           style={{
             flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-            paddingHorizontal: 22, paddingTop: 15, paddingBottom: insets.bottom + 15,
+            paddingHorizontal: 22, paddingTop: 15,
+            // With chat open the composer below carries the bottom inset.
+            paddingBottom: chatOpen ? 15 : insets.bottom + 15,
             borderTopWidth: 1, borderTopColor: c.hairlineSoft,
           }}
         >
@@ -502,6 +499,19 @@ export function StudyChatScreen({ onClose }: Props) {
             </PressScale>
           </View>
         </View>
+      )}
+
+      {/* Chat renders BELOW the footer so the composer's bottom edge is the
+          real screen bottom — StickyInputBar's keyboard padding measures from
+          there. */}
+      {phase === 'live' && chatOpen && (
+        <>
+          <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+            <ChatFeed messages={messages} />
+          </View>
+          {/* ChatInputBar rides the keyboard itself via StickyInputBar — no extra wrapper. */}
+          <ChatInputBar onSend={send} />
+        </>
       )}
     </View>
   );

@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Modal } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { BackHandler, View, StyleSheet } from 'react-native';
 import { useAppStore } from '../src/store/useAppStore';
 import { HomeScreen } from '../src/screens/HomeScreen';
 import { LiveStreamScreen } from '../src/screens/LiveStreamScreen';
@@ -12,6 +11,52 @@ import { DenominationScreen } from '../src/screens/DenominationScreen';
 import { EditProfileScreen } from '../src/screens/EditProfileScreen';
 import { UploadVideoScreen } from '../src/screens/UploadVideoScreen';
 import { Colors } from '../src/theme';
+import { useTheme } from '../src/theme/ThemeContext';
+
+/**
+ * Full-screen overlay rendered IN THE MAIN WINDOW — deliberately not a Modal.
+ *
+ * RN's Modal is a separate Android Dialog with its own view hierarchy, but RN
+ * observes keyboard changes on the *activity's* view tree. Inside a Modal the
+ * activity never sees the IME open, so `keyboardDidShow` never fires and
+ * keyboardHeight is stuck at 0 — measured on device: kb=0 with the keyboard
+ * plainly open, and the layout pixel-identical open vs closed. Under SDK 54's
+ * edge-to-edge the dialog does not resize either, so a composer inside a Modal
+ * has no way at all to get above the keys.
+ *
+ * An absolutely-positioned View keeps the same behaviour (HomeScreen stays
+ * mounted underneath, retaining scroll position) while living in the window
+ * that actually reports the keyboard. It also makes the status-bar overlap
+ * moot: one window, so each screen's own insets.top is simply correct.
+ *
+ * Trade-off: no built-in slide animation (the app already uses animation:'none'
+ * on its Stack) and hardware-back has to be wired up by hand, below.
+ */
+function Overlay({
+  visible, onClose, children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const { c } = useTheme();
+
+  useEffect(() => {
+    if (!visible) return;
+    // Replaces Modal's onRequestClose.
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+  // Opaque backdrop: the screens' own `sheet` colour is only ~92% opaque, which
+  // was invisible behind a Modal's dialog window but lets HomeScreen show
+  // through now that these render in the same window.
+  return <View style={[StyleSheet.absoluteFill, { backgroundColor: c.bg }]}>{children}</View>;
+}
 
 /**
  * Root screen.  All "overlay" screens (LiveStream, StudyChat, etc.) are
@@ -20,7 +65,6 @@ import { Colors } from '../src/theme';
  */
 export default function Index() {
   const { activeScreen, setActiveScreen, watchStreamId, setWatchStreamId } = useAppStore();
-  const insets = useSafeAreaInsets();
 
   const close = () => setActiveScreen('home');
   const closeViewer = () => {
@@ -34,84 +78,44 @@ export default function Index() {
       <HomeScreen />
 
       {/* Live Stream overlay */}
-      <Modal
-        visible={activeScreen === 'livestream'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'livestream'} onClose={close}>
         <LiveStreamScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Live viewer overlay (watch someone else's stream) */}
-      <Modal
-        visible={activeScreen === 'liveviewer' && Boolean(watchStreamId)}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeViewer}
-      >
+      <Overlay visible={activeScreen === 'liveviewer' && Boolean(watchStreamId)} onClose={closeViewer}>
         {watchStreamId ? <LiveViewerScreen streamId={watchStreamId} onClose={closeViewer} /> : <View />}
-      </Modal>
+      </Overlay>
 
       {/* Study Chat overlay */}
-      <Modal
-        visible={activeScreen === 'studychat'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'studychat'} onClose={close}>
         <StudyChatScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Ask the Bible (AI agent) overlay */}
-      <Modal
-        visible={activeScreen === 'askbible'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'askbible'} onClose={close}>
         <AskScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Podcasts overlay */}
-      <Modal
-        visible={activeScreen === 'podcasts'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'podcasts'} onClose={close}>
         <PodcastScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Denomination overlay */}
-      <Modal
-        visible={activeScreen === 'denomination'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'denomination'} onClose={close}>
         <DenominationScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Edit Profile overlay */}
-      <Modal
-        visible={activeScreen === 'editprofile'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'editprofile'} onClose={close}>
         <EditProfileScreen onClose={close} />
-      </Modal>
+      </Overlay>
 
       {/* Upload Video (Cloudflare Stream VOD) overlay */}
-      <Modal
-        visible={activeScreen === 'post'}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={close}
-      >
+      <Overlay visible={activeScreen === 'post'} onClose={close}>
         <UploadVideoScreen onClose={close} />
-      </Modal>
+      </Overlay>
     </View>
   );
 }
