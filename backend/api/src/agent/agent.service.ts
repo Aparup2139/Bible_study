@@ -20,12 +20,12 @@ interface ChatMessage {
   content: string;
 }
 
-interface ChatCompletion {
-  choices?: { message?: { content?: string } }[];
+interface ChatCompletionChunk {
+  choices?: { delta?: { content?: string | null } }[];
 }
 
 /**
- * Calls NVIDIA's OpenAI-compatible Qwen endpoint to answer questions strictly
+ * Calls NVIDIA's OpenAI-compatible chat endpoint to answer questions strictly
  * through the teaching of the Bible.
  *
  * Guardrail: every answer must quote scripture. The system prompt enforces this;
@@ -82,20 +82,25 @@ export class AgentService {
           messages,
           temperature: 0.6,
           top_p: 0.95,
-          // Cap on answer length; raise toward the model's 16384 max for longer replies.
+          // Cap on answer length. gpt-oss spends part of this on hidden reasoning
+          // (streamed as reasoning_content, which readSseContent drops), so leave headroom.
           max_tokens: 2048,
-          stream: false,
+          // Stream and accumulate server-side: NVIDIA's gateway queues non-streaming
+          // responses for minutes, while streamed chunks start immediately.
+          stream: true,
         }),
+        // Without this a stalled NVIDIA stream pins a worker forever; Render's
+        // free tier has very few, so a handful of hangs take the API down.
+        signal: AbortSignal.timeout(90_000),
       });
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         const detail = await res.text().catch(() => '');
         this.logger.error(`NVIDIA API ${res.status}: ${detail.slice(0, 500)}`);
         throw new BadGatewayException('The AI provider returned an error.');
       }
 
-      const json = (await res.json()) as ChatCompletion;
-      const content = stripThinking(json.choices?.[0]?.message?.content ?? '');
+      const content = stripThinking(await this.readSseContent(res.body));
       if (!content) {
         throw new BadGatewayException('The AI provider returned an empty response.');
       }
@@ -105,5 +110,33 @@ export class AgentService {
       this.logger.error(`NVIDIA request failed: ${(err as Error).message}`);
       throw new BadGatewayException('Could not reach the AI provider.');
     }
+  }
+
+  /** Concatenate assistant text from an OpenAI-style SSE stream ("data: {...}" lines). */
+  private async readSseContent(body: ReadableStream<Uint8Array>): Promise<string> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const data = line.trim();
+        if (!data.startsWith('data:')) continue;
+        const payload = data.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(payload) as ChatCompletionChunk;
+          content += chunk.choices?.[0]?.delta?.content ?? '';
+        } catch {
+          // Ignore keep-alives / non-JSON lines.
+        }
+      }
+    }
+    return content;
   }
 }

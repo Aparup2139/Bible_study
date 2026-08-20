@@ -21,11 +21,11 @@ export const envSchema = z.object({
   // Optional — when unset, the API falls back to direct Postgres UPSERTs.
   REDIS_URL: z.string().min(1).optional(),
 
-  // AI Bible agent — NVIDIA-hosted GLM (OpenAI-compatible API).
+  // AI Bible agent — NVIDIA-hosted gpt-oss (OpenAI-compatible API).
   // Optional: when NVIDIA_API_KEY is unset the /agent/ask endpoint returns 503.
   NVIDIA_API_KEY: z.string().min(1).optional(),
   NVIDIA_BASE_URL: z.string().url().default('https://integrate.api.nvidia.com/v1'),
-  NVIDIA_MODEL: z.string().default('z-ai/glm-5.2'),
+  NVIDIA_MODEL: z.string().default('openai/gpt-oss-20b'),
 
   // Phase 4 — Cloudflare Stream (live + on-demand video).
   // All optional: when CLOUDFLARE_STREAM_API_TOKEN is unset, /streams endpoints

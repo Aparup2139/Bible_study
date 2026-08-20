@@ -8,7 +8,7 @@ for ENVF in backend/.env ./.env ../backend/.env; do
   if [ -z "${NVIDIA_API_KEY:-}" ] && [ -f "$ENVF" ]; then set -a; . <(grep -E '^NVIDIA_' "$ENVF"); set +a; fi
 done
 KEY="${NVIDIA_API_KEY:-}"
-MODEL="${NVIDIA_MODEL:-qwen/qwen3.5-397b-a17b}"
+MODEL="${NVIDIA_MODEL:-openai/gpt-oss-20b}"
 BASE="${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}"
 [ -z "$KEY" ] && { echo "Set NVIDIA_API_KEY (or run from repo root so backend/.env is found)."; exit 1; }
 command -v jq >/dev/null || { echo "jq not found — install with: sudo apt install jq"; exit 1; }
@@ -16,7 +16,7 @@ command -v jq >/dev/null || { echo "jq not found — install with: sudo apt inst
 SYS='You are the BibleWay study assistant. Answer through the teaching of the Bible and quote at least one relevant verse with its reference (Book Chapter:Verse). Be warm and concise. If the Bible does not address it, say so honestly.'
 
 pass=0; fail=0
-echo "=== 1) Direct NVIDIA call — does Qwen answer with scripture? (model: $MODEL) ==="
+echo "=== 1) Direct NVIDIA call — does the model answer with scripture? (model: $MODEL) ==="
 for Q in "What does the Bible say about anxiety?" "How can I forgive someone who hurt me?" "What is the best phone to buy?"; do
   echo "Q: $Q"
   RESP=$(curl -s --max-time 90 "$BASE/chat/completions" \

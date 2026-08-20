@@ -48,7 +48,7 @@ export function extractReferences(text: string): string[] {
   return [...new Set(matches.map((m) => m.replace(/\s+/g, ' ').trim()))];
 }
 
-/** Strip any chain-of-thought the model might emit (some Qwen variants use <think>…</think>). */
+/** Strip any chain-of-thought the model might emit (GLM/Qwen use <think>…</think>; gpt-oss puts it in a separate reasoning_content field we never read). */
 export function stripThinking(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }

@@ -28,8 +28,9 @@ services:
         sync: false
       - key: NVIDIA_API_KEY
         sync: false
+      # Not a secret: pin the model in git so prod cannot drift from backend/.env.
       - key: NVIDIA_MODEL
-        sync: false
+        value: openai/gpt-oss-20b
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_STREAM_API_TOKEN

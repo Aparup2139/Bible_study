@@ -1,4 +1,4 @@
-// AI Bible agent (NVIDIA-hosted Qwen, OpenAI-compatible API).
+// AI Bible agent (NVIDIA-hosted gpt-oss, OpenAI-compatible API).
 // Every answer is grounded in Bible teaching and quotes scripture; `references`
 // lists the verse references detected in the answer for the UI to render.
 

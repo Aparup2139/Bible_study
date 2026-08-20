@@ -110,6 +110,9 @@ export class StreamsService {
     const row = await this.findRow(id);
     if (row.status === 'ended') throw new BadRequestException('Stream has ended');
     const isHost = row.host_id === userId;
+    // is_public is the ONLY privacy control under Agora (Cloudflare's signed
+    // playback is dead now), so it has to be enforced here — not just stored.
+    if (!row.is_public && !isHost) throw new ForbiddenException('This stream is private');
     const role = isHost ? ('publisher' as const) : ('subscriber' as const);
     const uid = isHost ? HOST_UID : AUDIENCE_UID;
     const t = this.agora.buildRtcToken(row.id, uid, role);
@@ -151,6 +154,7 @@ export class StreamsService {
       .from('live_streams')
       .select('*')
       .eq('status', 'live')
+      .eq('is_public', true)
       .order('started_at', { ascending: false })
       .order('id', { ascending: true })
       .limit(PAGE_SIZE + 1);
