@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -6,7 +7,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import type { UpdateProfileInput } from '@bibleway/shared-types';
+import type { AccountType, UpdateProfileInput } from '@bibleway/shared-types';
 
 /**
  * Whitelisted, validated fields for PATCH /profiles/me.
@@ -46,6 +47,10 @@ export class UpdateProfileDto implements UpdateProfileInput {
   @IsString()
   @Matches(/^[a-z0-9-]{2,50}$/, { message: 'denominationId must be a valid slug' })
   denominationId?: string | null;
+
+  @IsOptional()
+  @IsIn(['personal', 'business'])
+  accountType?: AccountType;
 }
 
 /** Query DTO for GET /profiles/check-handle?handle=... */

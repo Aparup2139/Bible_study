@@ -1,6 +1,8 @@
 // User & Profile domain types.
 // Mirrors the API contract consumed by the frontend (Frontend/src/types).
 
+export type AccountType = 'personal' | 'business';
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -9,6 +11,7 @@ export interface UserProfile {
   avatarUri: string | null;
   subscriberCount: number;
   denominationId: string | null;
+  accountType: AccountType;
   isVerified: boolean;
   createdAt: string;
 }
@@ -23,6 +26,7 @@ export interface UpdateProfileInput {
   bio?: string;
   avatarPath?: string | null;
   denominationId?: string | null;
+  accountType?: AccountType;
 }
 
 // Response for the handle-availability check used by the edit screen.

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  AccountType,
   HandleAvailability,
   UpdateProfileInput,
   UserProfile,
@@ -20,6 +21,7 @@ interface ProfileRow {
   avatar_path: string | null;
   subscriber_count: number;
   denomination_id: string | null;
+  account_type: AccountType;
   is_verified: boolean;
   created_at: string;
 }
@@ -133,6 +135,7 @@ export class ProfilesService {
       avatarUri: this.avatarUrl(row.avatar_path),
       subscriberCount: row.subscriber_count,
       denominationId: row.denomination_id,
+      accountType: row.account_type,
       isVerified: row.is_verified,
       createdAt: row.created_at,
     };
@@ -149,7 +152,7 @@ export class ProfilesService {
 }
 
 const PROFILE_COLUMNS =
-  'id, display_name, handle, bio, avatar_path, subscriber_count, denomination_id, is_verified, created_at';
+  'id, display_name, handle, bio, avatar_path, subscriber_count, denomination_id, account_type, is_verified, created_at';
 
 /** Translate the camelCase API input into snake_case DB columns. */
 function toRowPatch(input: UpdateProfileInput): Record<string, unknown> {
@@ -160,5 +163,6 @@ function toRowPatch(input: UpdateProfileInput): Record<string, unknown> {
   if (input.avatarPath !== undefined) patch.avatar_path = input.avatarPath;
   if (input.denominationId !== undefined)
     patch.denomination_id = input.denominationId;
+  if (input.accountType !== undefined) patch.account_type = input.accountType;
   return patch;
 }
