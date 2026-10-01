@@ -12,6 +12,7 @@ import { StreamsModule } from './streams/streams.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { FeaturedVideosModule } from './featured-videos/featured-videos.module';
 import { RedisModule } from './redis/redis.module';
+import { LiveHostModule } from './live-host/live-host.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -43,6 +44,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     RoomsModule,
     // Featured YouTube videos on Home (4 slots)
     FeaturedVideosModule,
+    // Expo Go demo: browser page that broadcasts for Android hosts
+    LiveHostModule,
     // Feature modules are added per phase under ./modules/<feature>:
     //   Phase 4  StreamsModule
     //   Phase 5  ChatModule
